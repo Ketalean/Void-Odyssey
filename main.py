@@ -3,7 +3,7 @@ import os
 import sys
 from pygame import draw, Color
 
-FPS = 30
+FPS = 60
 
 pygame.init()
 
