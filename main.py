@@ -47,8 +47,14 @@ def start_screen():
         screen.fill((0, 0, 0))
         logo = load_image('logo.png')
         screen.blit(logo, (WIDTH // 2 - 150, 20))
+        play = load_image('play.jpg')
+        screen.blit(play, (WIDTH // 2 - 75, 200))
+        play = load_image('settings.jpg')
+        screen.blit(play, (WIDTH // 2 - 75, 290))
+        draw.rect(screen, Color('white'), (WIDTH // 2 - 75, 200, 150, 69), 2)
+        draw.rect(screen, Color('white'), (WIDTH // 2 - 75, 290, 150, 59), 2)
         if pygame.mouse.get_focused():
-            arrow = load_image('arrow.png')
+            arrow = load_image('Cursor.png')
             screen.blit(arrow, (x, y))
 
         pygame.display.flip()
@@ -58,5 +64,3 @@ def start_screen():
 
 
 start_screen()
-
-
