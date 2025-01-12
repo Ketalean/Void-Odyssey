@@ -78,16 +78,39 @@ def settings_screen():
                 running = False
             if event.type == pygame.MOUSEMOTION:
                 x, y = event.pos
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+
         # Painting
-        screen.fill((0, 0, 0))
+        screen.fill((150, 150, 150))
+        pergament = load_image('pergament.png', (255, 255, 255))
+        screen.blit(pergament, (390, 140))
         if pygame.mouse.get_focused():
             arrow = load_image('Cursor.png')
             screen.blit(arrow, (x, y))
-
+        print_text('Движение вправо', 50, 150)
+        print_text('D', 400, 150)
         pygame.display.flip()
         # Time
         clock.tick(FPS)
     pygame.quit()
+
+
+def print_text(message, x, y, font_size=30, font_type='DreiFraktur.ttf'):
+    '''
+    Функция выводит текст на экран
+    :param message: (str) текст, который надо вывести
+    :param x: (int) координаты по x
+    :param y: (int) координаты по y
+    :param font_size: размер шрифта
+    :param font_type: тип шрифта, не стоит изменять
+    :return: Nothing
+    '''
+
+    fullname = os.path.join('data', font_type)
+    font = pygame.font.Font(fullname, font_size)
+    text = font.render(message, True, (0, 0, 0))
+    screen.blit(text, (x, y))
 
 
 start_screen()
