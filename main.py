@@ -30,16 +30,24 @@ def load_image(name, colorkey=None):
     return image
 
 
+def terminate():
+    """
+    Прерывание игры
+    """
+    pygame.quit()
+    sys.exit()
+
+
 def start_screen():
+    global x, y
     pygame.display.set_caption('Void Odyssey')
-    x, y = 0, 0
     pygame.mouse.set_visible(False)
     running = True
     while running:
         # Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                terminate()
             if event.type == pygame.MOUSEMOTION:
                 x, y = event.pos
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -67,8 +75,8 @@ def start_screen():
 
 
 def settings_screen():
+    global x, y
     pygame.display.set_caption('Settings')
-    x, y = 0, 0
     color_right = (0, 0, 0)  # цвет надписи, отвечающий за кнопку "вправо". Далее по аналогии
     inp_right = False  # означает, надо ли изменять кнопку "вправо"
     k_right = 'd'
@@ -90,7 +98,7 @@ def settings_screen():
         # Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                terminate()
             if event.type == pygame.MOUSEMOTION:
                 x, y = event.pos
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -155,7 +163,10 @@ def settings_screen():
                     if event.unicode in 'qwertyuiopasdfghjklzxcvbnm':
                         k_shoot = event.unicode
                     inp_shoot = False
-                    color_shoot= (0, 0, 0)
+                    color_shoot = (0, 0, 0)
+                if event.key == pygame.K_ESCAPE:
+                    start_screen()
+                    # exit to main menu
 
         # Painting
         screen.fill((150, 150, 150))
