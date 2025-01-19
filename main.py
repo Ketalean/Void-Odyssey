@@ -30,12 +30,96 @@ def load_image(name, colorkey=None):
     return image
 
 
+player_image = load_image('player.png')
+
+
+class Player(pygame.sprite.Sprite):
+    # набросок класса игрока с анимацией
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(all_sprites)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.k = 0
+        self.x = x
+        self.y = y
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        if self.k == 3:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+    def move(self):
+        if self.x < WIDTH:
+            self.x += 10
+            self.rect = self.rect.move(10, 0)
+        else:
+            self.rect = self.rect.move(-800, 0)
+            self.x = 0
+
+
+# основной персонаж
+player = None
+
+# группы спрайтов
+all_sprites = pygame.sprite.Group()
+player_group = pygame.sprite.Group()
+
+
 def terminate():
     """
     Прерывание игры
     """
     pygame.quit()
     sys.exit()
+
+
+def game():
+    # набросок первого уровня игры
+    player = Player(load_image("player-move.png"), 8, 1, 100, 400)
+    pygame.mouse.set_visible(False)
+    running = True
+    go = False
+    while running:
+        # Events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEMOTION:
+                pass
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RIGHT:
+                    go = True
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_RIGHT:
+                    go = False
+        # Painting
+        screen.fill((0, 0, 0))
+        if go:
+            all_sprites.draw(screen)
+            player.update()
+            player.move()
+        else:
+            hero = load_image('player.png')
+            screen.blit(hero, (player.x, player.y))
+        # Time
+        pygame.display.flip()
+        if player.k < 3:
+            player.k += 1
+        clock.tick(FPS)
+    pygame.quit()
 
 
 def start_screen():
@@ -54,6 +138,8 @@ def start_screen():
                 x, y = event.pos
                 if WIDTH // 2 - 75 <= x <= WIDTH // 2 + 75 and 290 <= y <= 349:
                     settings_screen()
+                else:
+                    game()
         # Painting
         screen.fill((0, 0, 0))
         logo = load_image('logo.png')
@@ -176,9 +262,6 @@ def settings_screen():
         screen.blit(pergament, (394, 144))
         screen.blit(pergament, (394, 194))
         screen.blit(pergament, (394, 244))
-        if pygame.mouse.get_focused():
-            arrow = load_image('Cursor.png')
-            screen.blit(arrow, (x, y))
         print_text('Движение вправо', 50, 50)
         print_text(k_right, 400, 50, color_right)
         print_text('Движение влево', 50, 100)
@@ -190,6 +273,9 @@ def settings_screen():
         print_text('Стрелять', 50, 250)
         print_text(k_shoot, 400, 250, color_shoot)
         draw.rect(screen, Color('white'), (550, 525, 100, 50))
+        if pygame.mouse.get_focused():
+            arrow = load_image('Cursor.png')
+            screen.blit(arrow, (x, y))
         pygame.display.flip()
         # Time
         clock.tick(FPS)
