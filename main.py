@@ -12,6 +12,12 @@ HEIGHT = 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
+k_right = 'd'
+k_left = 'a'
+k_up = 'w'
+k_down = 's'
+k_shoot = 'l'
+
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
@@ -137,7 +143,7 @@ def start_screen():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
                 if WIDTH // 2 - 75 <= x <= WIDTH // 2 + 75 and 290 <= y <= 349:
-                    settings_screen()
+                    print(settings_screen())
                 else:
                     game()
         # Painting
@@ -161,23 +167,19 @@ def start_screen():
 
 
 def settings_screen():
-    global x, y
+    global x, y, k_right, k_left, k_up, k_down, k_shoot
+    error = False
     pygame.display.set_caption('Settings')
     color_right = (0, 0, 0)  # цвет надписи, отвечающий за кнопку "вправо". Далее по аналогии
     inp_right = False  # означает, надо ли изменять кнопку "вправо"
-    k_right = 'd'
     color_left = (0, 0, 0)
     inp_left = False
-    k_left = 'a'
     color_up = (0, 0, 0)
     inp_up = False
-    k_up = 'w'
     color_down = (0, 0, 0)
     inp_down = False
-    k_down = 's'
     color_shoot = (0, 0, 0)
     inp_shoot = False
-    k_shoot = 'l'
     pygame.mouse.set_visible(False)
     running = True
     while running:
@@ -189,6 +191,17 @@ def settings_screen():
                 x, y = event.pos
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
+                if 550 <= x <= 650 and 525 <= y <= 575:
+                    #  проверяет, всё ли хорошо с настройками
+                    if (len(set(list([k_right, k_left, k_up, k_down, k_shoot]))) ==
+                            len([k_right, k_left, k_up, k_down, k_shoot]) and
+                            len([k_right, k_left, k_up, k_down, k_shoot]) ==
+                            ''.join([k_right, k_left, k_up, k_down, k_shoot])):
+                        return [k_right, k_left, k_up, k_down, k_shoot]
+                    else:
+                        error = True
+                if 337 <= x <= 412 and 350 <= y <= 390 and error:
+                    error = False
                 if 344 <= x <= 405 and 44 <= y <= 85:
                     color_right = (150, 150, 150)
                     inp_right = True
@@ -199,28 +212,28 @@ def settings_screen():
                 if 344 <= x <= 405 and 94 <= y <= 135:
                     color_left = (150, 150, 150)
                     inp_left = True
-                    print_text('a', 400, 50, color_left)
+                    print_text(k_left, 400, 50, color_left)
                 else:
                     color_left = (0, 0, 0)
                     inp_left = False
                 if 344 <= x <= 405 and 144 <= y <= 185:
                     color_up = (150, 150, 150)
                     inp_up = True
-                    print_text('w', 400, 50, color_up)
+                    print_text(k_up, 400, 50, color_up)
                 else:
                     color_up = (0, 0, 0)
                     inp_up = False
                 if 344 <= x <= 405 and 194 <= y <= 235:
                     color_down = (150, 150, 150)
                     inp_down = True
-                    print_text('s', 400, 50, color_down)
+                    print_text(k_down, 400, 50, color_down)
                 else:
                     color_down = (0, 0, 0)
                     inp_down = False
                 if 344 <= x <= 405 and 244 <= y <= 285:
                     color_shoot = (150, 150, 150)
                     inp_shoot = True
-                    print_text('l', 400, 50, color_shoot)
+                    print_text(k_shoot, 400, 50, color_shoot)
                 else:
                     color_shoot = (0, 0, 0)
                     inp_shoot = False
@@ -273,6 +286,17 @@ def settings_screen():
         print_text('Стрелять', 50, 250)
         print_text(k_shoot, 400, 250, color_shoot)
         draw.rect(screen, Color('white'), (550, 525, 100, 50))
+        print_text('OK', 580, 535)
+        if error:
+            draw.rect(screen, Color('yellow'), (250, 250, 250, 150))
+            draw.rect(screen, Color('black'), (245, 245, 260, 160), 5)
+            print_text('''Неправильный формат ввода:
+1) Для управления использованы
+клавиши НЕ английского алфавита
+2) Одна и та же клавиша 
+используется более 1 раза''', 255, 255, (200, 0, 0), 11)
+            draw.rect(screen, Color('black'), (337, 350, 75, 40))
+            print_text('OK', 353, 352, (250, 250, 250))
         if pygame.mouse.get_focused():
             arrow = load_image('Cursor.png')
             screen.blit(arrow, (x, y))
