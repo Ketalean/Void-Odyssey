@@ -67,13 +67,36 @@ class Player(pygame.sprite.Sprite):
             self.image = self.frames[self.cur_frame]
             self.k = 0
 
-    def move(self):
-        if self.x < WIDTH:
-            self.x += 10
-            self.rect = self.rect.move(10, 0)
-        else:
-            self.rect = self.rect.move(-800, 0)
-            self.x = 0
+    def move(self, direction):
+        #  direction отвечает за направление движения
+        if direction == 'r':
+            if self.x < WIDTH:
+                self.x += 10
+                self.rect = self.rect.move(10, 0)
+            else:
+                self.rect = self.rect.move(-800, 0)
+                self.x = 0
+        elif direction == 'l':
+            if self.x > 0:
+                self.x -= 10
+                self.rect = self.rect.move(-10, 0)
+            else:
+                self.rect = self.rect.move(800, 0)
+                self.x = 800
+        elif direction == 'u':
+            if self.y > 0:
+                self.y -= 10
+                self.rect = self.rect.move(0, -10)
+            else:
+                self.rect = self.rect.move(0, 600)
+                self.y = 600
+        elif direction == 'd':
+            if self.y < HEIGHT:
+                self.y += 10
+                self.rect = self.rect.move(0, 10)
+            else:
+                self.rect = self.rect.move(0, -600)
+                self.y = 0
 
 
 # основной персонаж
@@ -97,7 +120,11 @@ def game():
     player = Player(load_image("player-move.png"), 8, 1, 100, 400)
     pygame.mouse.set_visible(False)
     running = True
-    go = False
+    go_right = False
+    go_left = False
+    go_up = False
+    go_down = False
+    shoot = False  # на будущее
     while running:
         # Events
         for event in pygame.event.get():
@@ -106,17 +133,41 @@ def game():
             if event.type == pygame.MOUSEMOTION:
                 pass
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RIGHT:
-                    go = True
+                if event.unicode == k_right:
+                    go_right = True
+                elif event.unicode == k_left:
+                    go_left = True
+                elif event.unicode == k_up:
+                    go_up = True
+                elif event.unicode == k_down:
+                    go_down = True
             if event.type == pygame.KEYUP:
-                if event.key == pygame.K_RIGHT:
-                    go = False
+                if event.unicode == k_right:
+                    go_right = False
+                elif event.unicode == k_left:
+                    go_left = False
+                elif event.unicode == k_up:
+                    go_up = False
+                elif event.unicode == k_down:
+                    go_down = False
         # Painting
         screen.fill((0, 0, 0))
-        if go:
+        if go_right:
             all_sprites.draw(screen)
             player.update()
-            player.move()
+            player.move('r')
+        elif go_left:
+            all_sprites.draw(screen)
+            player.update()
+            player.move('l')
+        elif go_up:
+            all_sprites.draw(screen)
+            player.update()
+            player.move('u')
+        elif go_down:
+            all_sprites.draw(screen)
+            player.update()
+            player.move('d')
         else:
             hero = load_image('player.png')
             screen.blit(hero, (player.x, player.y))
@@ -143,7 +194,7 @@ def start_screen():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
                 if WIDTH // 2 - 75 <= x <= WIDTH // 2 + 75 and 290 <= y <= 349:
-                    print(settings_screen())
+                    settings_screen()
                 else:
                     game()
         # Painting
@@ -196,7 +247,7 @@ def settings_screen():
                     if (len(set(list([k_right, k_left, k_up, k_down, k_shoot]))) ==
                             len([k_right, k_left, k_up, k_down, k_shoot]) and
                             len([k_right, k_left, k_up, k_down, k_shoot]) ==
-                            ''.join([k_right, k_left, k_up, k_down, k_shoot])):
+                            len(''.join([k_right, k_left, k_up, k_down, k_shoot]))):
                         return [k_right, k_left, k_up, k_down, k_shoot]
                     else:
                         error = True
