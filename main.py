@@ -36,7 +36,46 @@ def load_image(name, colorkey=None):
     return image
 
 
-player_image = load_image('player.png')
+class Electro_Ball(pygame.sprite.Sprite):
+    # набросок класса игрока с анимацией
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(all_sprites)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.k = 0
+        self.x = x
+        self.y = y
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self, direction):
+        if direction == 'r':
+            if 2 < self.cur_frame <= 4:
+                self.cur_frame += 1
+            else:
+                self.cur_frame = 3
+        elif direction == 'l':
+            if 8 < self.cur_frame <= 9:
+                self.cur_frame += 1
+            else:
+                self.cur_frame = 9
+        self.image = self.frames[self.cur_frame]
+        self.k = 0
+
+
+ball = None
+
+player_image = load_image('hero.png')
 
 
 class Player(pygame.sprite.Sprite):
@@ -61,42 +100,71 @@ class Player(pygame.sprite.Sprite):
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
 
-    def update(self):
+    def update(self, direction):
         if self.k == 3:
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            if direction == 'u':
+                self.cur_frame = (self.cur_frame + 1) % 3
+            elif direction == 'r':
+                if 2 < self.cur_frame <= 4:
+                    self.cur_frame += 1
+                else:
+                    self.cur_frame = 3
+            elif direction == 'd':
+                if 5 < self.cur_frame <= 6:
+                    self.cur_frame += 1
+                else:
+                    self.cur_frame = 6
+            elif direction == 'l':
+                if 8 < self.cur_frame <= 9:
+                    self.cur_frame += 1
+                else:
+                    self.cur_frame = 9
             self.image = self.frames[self.cur_frame]
             self.k = 0
 
     def move(self, direction):
         #  direction отвечает за направление движения
+        SPEED = 5
         if direction == 'r':
             if self.x < WIDTH:
-                self.x += 10
-                self.rect = self.rect.move(10, 0)
+                self.x += SPEED
+                self.rect = self.rect.move(SPEED, 0)
             else:
                 self.rect = self.rect.move(-800, 0)
                 self.x = 0
         elif direction == 'l':
             if self.x > 0:
-                self.x -= 10
-                self.rect = self.rect.move(-10, 0)
+                self.x -= SPEED
+                self.rect = self.rect.move(-SPEED, 0)
             else:
                 self.rect = self.rect.move(800, 0)
                 self.x = 800
         elif direction == 'u':
             if self.y > 0:
-                self.y -= 10
-                self.rect = self.rect.move(0, -10)
+                self.y -= SPEED
+                self.rect = self.rect.move(0, -SPEED)
             else:
                 self.rect = self.rect.move(0, 600)
                 self.y = 600
         elif direction == 'd':
             if self.y < HEIGHT:
-                self.y += 10
-                self.rect = self.rect.move(0, 10)
+                self.y += SPEED
+                self.rect = self.rect.move(0, SPEED)
             else:
                 self.rect = self.rect.move(0, -600)
                 self.y = 0
+        elif direction == 'ur' or direction == 'ru':
+            self.move('u')
+            self.move('r')
+        elif direction == 'ul' or direction == 'lu':
+            self.move('u')
+            self.move('l')
+        elif direction == 'dr' or direction == 'rd':
+            self.move('d')
+            self.move('r')
+        elif direction == 'dl' or direction == 'ld':
+            self.move('d')
+            self.move('l')
 
 
 # основной персонаж
@@ -117,7 +185,7 @@ def terminate():
 
 def game():
     # набросок первого уровня игры
-    player = Player(load_image("player-move.png"), 8, 1, 100, 400)
+    player = Player(load_image("hero-move.png"), 3, 4, 100, 400)
     pygame.mouse.set_visible(False)
     running = True
     go_right = False
@@ -141,6 +209,8 @@ def game():
                     go_up = True
                 elif event.unicode == k_down:
                     go_down = True
+                elif event.unicode == k_shoot:
+                    shoot = True
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -150,27 +220,49 @@ def game():
                     go_up = False
                 elif event.unicode == k_down:
                     go_down = False
+                elif event.unicode == shoot:
+                    shoot = False
         # Painting
         screen.fill((0, 0, 0))
-        if go_right:
+        if go_up and go_right:
             all_sprites.draw(screen)
-            player.update()
+            player.update('u')
+            player.move('ur')
+        elif go_up and go_left:
+            all_sprites.draw(screen)
+            player.update('u')
+            player.move('ul')
+        elif go_down and go_right:
+            all_sprites.draw(screen)
+            player.update('d')
+            player.move('dr')
+        elif go_down and go_left:
+            all_sprites.draw(screen)
+            player.update('d')
+            player.move('dl')
+        elif go_right:
+            all_sprites.draw(screen)
+            player.update('r')
             player.move('r')
         elif go_left:
             all_sprites.draw(screen)
-            player.update()
+            player.update('l')
             player.move('l')
         elif go_up:
             all_sprites.draw(screen)
-            player.update()
+            player.update('u')
             player.move('u')
         elif go_down:
             all_sprites.draw(screen)
-            player.update()
+            player.update('d')
             player.move('d')
         else:
-            hero = load_image('player.png')
+            hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
+        if shoot:
+            all_sprites.draw(screen)
+            ball = Electro_Ball(load_image("electro-ball-right.png"), 3, 4, player.x, player.y)
+            ball.move('r')
         # Time
         pygame.display.flip()
         if player.k < 3:
