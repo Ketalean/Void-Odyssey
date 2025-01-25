@@ -35,6 +35,18 @@ def load_image(name, colorkey=None):
         image = image.convert_alpha()
     return image
 
+def load_level(filename):
+    filename = "data/" + filename
+    # читаем уровень, убирая символы перевода строки
+    with open(filename, 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+
+    # и подсчитываем максимальную длину
+    max_width = max(map(len, level_map))
+
+    # дополняем каждую строку пустыми клетками ('.')
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
 
 class Electro_Ball(pygame.sprite.Sprite):
     # набросок снаряда
@@ -73,11 +85,27 @@ ball = None
 
 player_image = load_image('hero.png')
 
+tile_images = {
+    'wall': load_image('stones.png'),
+    'empty': load_image('grass.png')
+}
+
+tile_width = tile_height = 32
+
+
+class Tile(pygame.sprite.Sprite):
+    def __init__(self, tile_type, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites)
+        self.image = tile_images[tile_type]
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+
 
 class Player(pygame.sprite.Sprite):
     # набросок класса игрока с анимацией
     def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(all_sprites)
+        super().__init__(player_group)
+        self.pos = [x, y]
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
@@ -162,6 +190,26 @@ class Player(pygame.sprite.Sprite):
             self.move('d')
             self.move('l')
 
+class RealPlayer(Player):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(sheet, columns, rows, x, y)
+
+    def move(self, direction ):
+        SPEED = 5
+        if direction == 'r':
+            if self.x < WIDTH:
+                self.x += SPEED
+                self.rect = self.rect.move(SPEED, 0)
+            else:
+                self.rect = self.rect.move(-800, 0)
+                self.x = 0
+        elif direction == 'l':
+            if self.x > 0:
+                self.x -= SPEED
+                self.rect = self.rect.move(-SPEED, 0)
+            else:
+                self.rect = self.rect.move(800, 0)
+                self.x = 800
 
 # основной персонаж
 player = None
@@ -169,7 +217,26 @@ player = None
 # группы спрайтов
 all_sprites = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
+tiles_group = pygame.sprite.Group()
 ball_group = pygame.sprite.Group()
+
+
+def generate_level(level):
+    new_player, x, y = None, None, None
+    for y in range(len(level)):
+        for x in range(len(level[y])):
+            if level[y][x] == '.':
+                Tile('empty', x, y)
+            elif level[y][x] == '#':
+                Tile('wall', x, y)
+                print(x, y)
+            elif level[y][x] == '@':
+                Tile('empty', x, y)
+    # вернем игрока, а также размер поля в клетках
+    return x, y
+
+
+level_x, level_y = generate_level(load_level('map.txt'))
 
 
 def terminate():
@@ -181,7 +248,9 @@ def terminate():
 
 
 def game():
+    global player
     # набросок первого уровня игры
+    level = load_level('map.txt')
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     pygame.time.set_timer(SHOOTEVENTTYPE, 200)
     player = Player(load_image("hero-move.png"), 3, 4, 100, 400)
@@ -193,6 +262,7 @@ def game():
     go_down = False
     shoot = False
     shoot_time = False
+    Tile('wall', 12, 9) # test
     while running:
         # Events
         for event in pygame.event.get():
@@ -216,6 +286,8 @@ def game():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
+                elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
+                    first_level()
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -230,38 +302,114 @@ def game():
                     shoot = False
         # Painting
         screen.fill((0, 0, 0))
+        tiles_group.draw(screen)
         if go_up and go_right:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('u')
             player.move('ur')
         elif go_up and go_left:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('u')
             player.move('ul')
         elif go_down and go_right:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('d')
             player.move('dr')
         elif go_down and go_left:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('d')
             player.move('dl')
         elif go_right:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('r')
             player.move('r')
         elif go_left:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('l')
             player.move('l')
         elif go_up:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('u')
             player.move('u')
         elif go_down:
-            all_sprites.draw(screen)
+            player_group.draw(screen)
             player.update('d')
             player.move('d')
+        else:
+            hero = load_image('hero.png')
+            screen.blit(hero, (player.x, player.y))
+        ball_group.update()
+        ball_group.draw(screen)
+        if shoot_time:
+            Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y)
+            shoot_time = False
+        # Time
+        pygame.display.flip()
+        if player.k < 3:
+            player.k += 1
+        clock.tick(FPS)
+    pygame.quit()
+
+
+def first_level():
+    global player
+    SHOOTEVENTTYPE = pygame.USEREVENT + 1
+    pygame.display.set_caption('Void Odyssey')
+    pygame.mouse.set_visible(False)
+    player.kill()
+    player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
+    go_right = False
+    go_left = False
+    shoot_time = False
+    shoot = False
+    running = True
+    while running:
+        # Events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEMOTION:
+                pass
+            if event.type == SHOOTEVENTTYPE and shoot:
+                shoot_time = True
+            else:
+                shoot_time = False
+            if event.type == pygame.KEYDOWN:
+                if event.unicode == k_right:
+                    go_right = True
+                elif event.unicode == k_left:
+                    go_left = True
+                elif event.unicode == k_up:
+                    go_up = True
+                elif event.unicode == k_down:
+                    go_down = True
+                elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 300)
+                    shoot = True
+                elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
+                    first_level()
+            if event.type == pygame.KEYUP:
+                if event.unicode == k_right:
+                    go_right = False
+                elif event.unicode == k_left:
+                    go_left = False
+                elif event.unicode == k_up:
+                    go_up = False
+                elif event.unicode == k_down:
+                    go_down = False
+                elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 0)
+                    shoot = False
+        # Painting
+        screen.fill((0, 0, 0))
+        if go_right:
+            player_group.draw(screen)
+            player.update('r')
+            player.move('r')
+        elif go_left:
+            player_group.draw(screen)
+            player.update('l')
+            player.move('l')
         else:
             hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
@@ -298,6 +446,8 @@ def start_screen():
                     game()
         # Painting
         screen.fill((0, 0, 0))
+        fon = pygame.transform.scale(load_image('environment_forest_evening.png'), (WIDTH, HEIGHT))
+        screen.blit(fon, (0, 0))
         logo = load_image('logo.png')
         screen.blit(logo, (WIDTH // 2 - 150, 20))
         play = load_image('play.jpg')
