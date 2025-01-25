@@ -37,9 +37,9 @@ def load_image(name, colorkey=None):
 
 
 class Electro_Ball(pygame.sprite.Sprite):
-    # набросок класса игрока с анимацией
+    # набросок снаряда
     def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(all_sprites)
+        super().__init__(ball_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
@@ -58,19 +58,15 @@ class Electro_Ball(pygame.sprite.Sprite):
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
 
-    def update(self, direction):
-        if direction == 'r':
-            if 2 < self.cur_frame <= 4:
-                self.cur_frame += 1
-            else:
-                self.cur_frame = 3
-        elif direction == 'l':
-            if 8 < self.cur_frame <= 9:
-                self.cur_frame += 1
-            else:
-                self.cur_frame = 9
+    def update(self):
+        screen_rect = (0, 0, WIDTH, HEIGHT)
+        self.cur_frame = (self.cur_frame + 1) % 6
         self.image = self.frames[self.cur_frame]
-        self.k = 0
+        SPEED = 10
+        self.x += SPEED
+        self.rect = self.rect.move(SPEED, 0)
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
 
 
 ball = None
@@ -173,6 +169,7 @@ player = None
 # группы спрайтов
 all_sprites = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
+ball_group = pygame.sprite.Group()
 
 
 def terminate():
@@ -185,6 +182,8 @@ def terminate():
 
 def game():
     # набросок первого уровня игры
+    SHOOTEVENTTYPE = pygame.USEREVENT + 1
+    pygame.time.set_timer(SHOOTEVENTTYPE, 200)
     player = Player(load_image("hero-move.png"), 3, 4, 100, 400)
     pygame.mouse.set_visible(False)
     running = True
@@ -192,7 +191,8 @@ def game():
     go_left = False
     go_up = False
     go_down = False
-    shoot = False  # на будущее
+    shoot = False
+    shoot_time = False
     while running:
         # Events
         for event in pygame.event.get():
@@ -200,6 +200,10 @@ def game():
                 terminate()
             if event.type == pygame.MOUSEMOTION:
                 pass
+            if event.type == SHOOTEVENTTYPE and shoot:
+                shoot_time = True
+            else:
+                shoot_time = False
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -210,6 +214,7 @@ def game():
                 elif event.unicode == k_down:
                     go_down = True
                 elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
@@ -220,7 +225,8 @@ def game():
                     go_up = False
                 elif event.unicode == k_down:
                     go_down = False
-                elif event.unicode == shoot:
+                elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 0)
                     shoot = False
         # Painting
         screen.fill((0, 0, 0))
@@ -259,10 +265,11 @@ def game():
         else:
             hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
-        if shoot:
-            all_sprites.draw(screen)
-            ball = Electro_Ball(load_image("electro-ball-right.png"), 3, 4, player.x, player.y)
-            ball.move('r')
+        ball_group.update()
+        ball_group.draw(screen)
+        if shoot_time:
+            Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y)
+            shoot_time = False
         # Time
         pygame.display.flip()
         if player.k < 3:
