@@ -36,6 +36,7 @@ def load_image(name, colorkey=None):
         image = image.convert_alpha()
     return image
 
+
 def load_level(filename):
     filename = "data/" + filename
     # читаем уровень, убирая символы перевода строки
@@ -93,8 +94,7 @@ player_image = load_image('hero.png')
 
 tile_images = {
     'wall': load_image('stones.png'),
-    'empty': load_image('grass.png'),
-    'tree': load_image('tree.png')
+    'empty': load_image('grass.png')
 }
 
 tile_width = tile_height = 64
@@ -106,6 +106,18 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+
+
+class Portal(pygame.sprite.Sprite):
+    image = load_image("box.png")
+
+    def __init__(self, pos_x, pos_y):
+        super().__init__(portals_group)
+        self.image = Portal.image
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        # вычисляем маску для эффективного сравнения
+        self.mask = pygame.mask.from_surface(self.image)
 
 
 class Player(pygame.sprite.Sprite):
@@ -161,28 +173,28 @@ class Player(pygame.sprite.Sprite):
                 self.x += SPEED
                 self.rect = self.rect.move(SPEED, 0)
             else:
-                self.rect = self.rect.move(-800, 0)
+                self.rect = self.rect.move(-WIDTH, 0)
                 self.x = 0
         elif direction == 'l':
             if self.x > 0:
                 self.x -= SPEED
                 self.rect = self.rect.move(-SPEED, 0)
             else:
-                self.rect = self.rect.move(800, 0)
-                self.x = 800
+                self.rect = self.rect.move(WIDTH, 0)
+                self.x = WIDTH
         elif direction == 'u':
             if self.y > 0:
                 self.y -= SPEED
                 self.rect = self.rect.move(0, -SPEED)
             else:
-                self.rect = self.rect.move(0, 600)
-                self.y = 600
+                self.rect = self.rect.move(0, HEIGHT)
+                self.y = HEIGHT
         elif direction == 'd':
             if self.y < HEIGHT:
                 self.y += SPEED
                 self.rect = self.rect.move(0, SPEED)
             else:
-                self.rect = self.rect.move(0, -600)
+                self.rect = self.rect.move(0, -HEIGHT)
                 self.y = 0
         elif direction == 'ur' or direction == 'ru':
             self.move('u')
@@ -208,6 +220,7 @@ class RealPlayer(Player):
         self.t = 0
         self.G = 7
         self.vy = 0
+
     def move(self, direction):
         SPEED = 5
         if direction == 'r':
@@ -237,6 +250,7 @@ all_sprites = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 ball_group = pygame.sprite.Group()
+portals_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -280,7 +294,8 @@ def game():
     go_down = False
     shoot = False
     shoot_time = False
-    Tile('tree', 7, 5) # test
+    portal = Portal(1, 1) # test
+    leave = False
     while running:
         # Events
         for event in pygame.event.get():
@@ -297,8 +312,8 @@ def game():
                     go_up = True
                 elif event.unicode == k_down:
                     go_down = True
-                elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
-                    first_level()
+                elif event.key == pygame.K_x:
+                    leave = True
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -311,6 +326,7 @@ def game():
         # Painting
         screen.fill((0, 0, 0))
         tiles_group.draw(screen)
+        portals_group.draw(screen)
         if go_up and go_right:
             player_group.draw(screen)
             player.update('u')
@@ -346,6 +362,13 @@ def game():
         else:
             hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
+        if pygame.sprite.collide_mask(player, portal):
+            if leave:
+                first_level()
+            else:
+                print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
+        else:
+            leave = False
         ball_group.update()
         ball_group.draw(screen)
         # Time
@@ -368,6 +391,7 @@ def first_level():
     shoot_time = False
     shoot = False
     running = True
+    jump = False
     while running:
         # Events
         for event in pygame.event.get():
@@ -389,8 +413,6 @@ def first_level():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
-                elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
-                    first_level()
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
