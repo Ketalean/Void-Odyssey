@@ -11,6 +11,7 @@ WIDTH = 960
 HEIGHT = 640
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+# sipg
 
 k_right = 'd'
 k_left = 'a'
