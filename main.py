@@ -7,8 +7,8 @@ FPS = 60
 
 pygame.init()
 
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 960
+HEIGHT = 640
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
@@ -87,10 +87,11 @@ player_image = load_image('hero.png')
 
 tile_images = {
     'wall': load_image('stones.png'),
-    'empty': load_image('grass.png')
+    'empty': load_image('grass.png'),
+    'tree': load_image('tree.png')
 }
 
-tile_width = tile_height = 32
+tile_width = tile_height = 64
 
 
 class Tile(pygame.sprite.Sprite):
@@ -190,6 +191,7 @@ class Player(pygame.sprite.Sprite):
             self.move('d')
             self.move('l')
 
+
 class RealPlayer(Player):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
@@ -262,7 +264,7 @@ def game():
     go_down = False
     shoot = False
     shoot_time = False
-    Tile('wall', 12, 9) # test
+    Tile('tree', 7, 5) # test
     while running:
         # Events
         for event in pygame.event.get():
