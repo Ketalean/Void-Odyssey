@@ -17,6 +17,7 @@ k_left = 'a'
 k_up = 'w'
 k_down = 's'
 k_shoot = 'l'
+k_jump = ' '
 
 
 def load_image(name, colorkey=None):
@@ -50,7 +51,7 @@ def load_level(filename):
 
 class Electro_Ball(pygame.sprite.Sprite):
     # набросок снаряда
-    def __init__(self, sheet, columns, rows, x, y):
+    def __init__(self, sheet, columns, rows, x, y, direction):
         super().__init__(ball_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
@@ -60,6 +61,7 @@ class Electro_Ball(pygame.sprite.Sprite):
         self.k = 0
         self.x = x
         self.y = y
+        self.direction = direction
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -75,8 +77,12 @@ class Electro_Ball(pygame.sprite.Sprite):
         self.cur_frame = (self.cur_frame + 1) % 6
         self.image = self.frames[self.cur_frame]
         SPEED = 10
-        self.x += SPEED
-        self.rect = self.rect.move(SPEED, 0)
+        if self.direction == 'right':
+            self.x += SPEED
+            self.rect = self.rect.move(SPEED, 0)
+        else:
+            self.x -= SPEED
+            self.rect = self.rect.move(-SPEED, 0)
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
@@ -195,8 +201,14 @@ class Player(pygame.sprite.Sprite):
 class RealPlayer(Player):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
-
-    def move(self, direction ):
+        self.look = 'right'
+        self.jump = False
+        self.y0 = self.y
+        self.v0 = 50
+        self.t = 0
+        self.G = 7
+        self.vy = 0
+    def move(self, direction):
         SPEED = 5
         if direction == 'r':
             if self.x < WIDTH:
@@ -212,6 +224,10 @@ class RealPlayer(Player):
             else:
                 self.rect = self.rect.move(800, 0)
                 self.x = 800
+        elif direction == 'j':
+            if self.v0:
+                self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
+                self.vy = self.v0 - self.G * self.t
 
 # основной персонаж
 player = None
@@ -272,10 +288,6 @@ def game():
                 terminate()
             if event.type == pygame.MOUSEMOTION:
                 pass
-            if event.type == SHOOTEVENTTYPE and shoot:
-                shoot_time = True
-            else:
-                shoot_time = False
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -285,9 +297,6 @@ def game():
                     go_up = True
                 elif event.unicode == k_down:
                     go_down = True
-                elif event.unicode == k_shoot:
-                    pygame.time.set_timer(SHOOTEVENTTYPE, 300)
-                    shoot = True
                 elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
                     first_level()
             if event.type == pygame.KEYUP:
@@ -299,9 +308,6 @@ def game():
                     go_up = False
                 elif event.unicode == k_down:
                     go_down = False
-                elif event.unicode == k_shoot:
-                    pygame.time.set_timer(SHOOTEVENTTYPE, 0)
-                    shoot = False
         # Painting
         screen.fill((0, 0, 0))
         tiles_group.draw(screen)
@@ -342,9 +348,6 @@ def game():
             screen.blit(hero, (player.x, player.y))
         ball_group.update()
         ball_group.draw(screen)
-        if shoot_time:
-            Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y)
-            shoot_time = False
         # Time
         pygame.display.flip()
         if player.k < 3:
@@ -379,12 +382,10 @@ def first_level():
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
+                    player.look = 'right'
                 elif event.unicode == k_left:
                     go_left = True
-                elif event.unicode == k_up:
-                    go_up = True
-                elif event.unicode == k_down:
-                    go_down = True
+                    player.look = 'left'
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
@@ -418,7 +419,10 @@ def first_level():
         ball_group.update()
         ball_group.draw(screen)
         if shoot_time:
-            Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y)
+            if player.look == 'right':
+                Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y, player.look)
+            else:
+                Electro_Ball(load_image("electro-ball-left.png"), 3, 2, player.x, player.y, player.look)
             shoot_time = False
         # Time
         pygame.display.flip()
@@ -469,7 +473,7 @@ def start_screen():
 
 
 def settings_screen():
-    global x, y, k_right, k_left, k_up, k_down, k_shoot
+    global x, y, k_right, k_left, k_up, k_down, k_shoot, k_jump
     error = False
     pygame.display.set_caption('Settings')
     color_right = (0, 0, 0)  # цвет надписи, отвечающий за кнопку "вправо". Далее по аналогии
@@ -482,6 +486,8 @@ def settings_screen():
     inp_down = False
     color_shoot = (0, 0, 0)
     inp_shoot = False
+    color_jump = (0, 0, 0)
+    inp_jump = False
     pygame.mouse.set_visible(False)
     running = True
     while running:
@@ -504,41 +510,42 @@ def settings_screen():
                         error = True
                 if 337 <= x <= 412 and 350 <= y <= 390 and error:
                     error = False
-                if 344 <= x <= 405 and 44 <= y <= 85:
+                if 375 <= x <= 405 and 44 <= y <= 85:
                     color_right = (150, 150, 150)
                     inp_right = True
-                    print_text(k_right, 400, 50, color_right)
                 else:
                     color_right = (0, 0, 0)
                     inp_right = False
-                if 344 <= x <= 405 and 94 <= y <= 135:
+                if 375 <= x <= 405 and 94 <= y <= 135:
                     color_left = (150, 150, 150)
                     inp_left = True
-                    print_text(k_left, 400, 50, color_left)
                 else:
                     color_left = (0, 0, 0)
                     inp_left = False
-                if 344 <= x <= 405 and 144 <= y <= 185:
+                if 375 <= x <= 405 and 144 <= y <= 185:
                     color_up = (150, 150, 150)
                     inp_up = True
-                    print_text(k_up, 400, 50, color_up)
                 else:
                     color_up = (0, 0, 0)
                     inp_up = False
-                if 344 <= x <= 405 and 194 <= y <= 235:
+                if 375 <= x <= 405 and 194 <= y <= 235:
                     color_down = (150, 150, 150)
                     inp_down = True
-                    print_text(k_down, 400, 50, color_down)
                 else:
                     color_down = (0, 0, 0)
                     inp_down = False
-                if 344 <= x <= 405 and 244 <= y <= 285:
+                if 375 <= x <= 405 and 244 <= y <= 285:
                     color_shoot = (150, 150, 150)
                     inp_shoot = True
-                    print_text(k_shoot, 400, 50, color_shoot)
                 else:
                     color_shoot = (0, 0, 0)
                     inp_shoot = False
+                if 375 <= x <= 405 and 294 <= y <= 335:
+                    color_jump = (150, 150, 150)
+                    inp_jump = True
+                else:
+                    color_jump = (0, 0, 0)
+                    inp_jump = False
             elif event.type == pygame.KEYDOWN:
                 if inp_right:
                     if event.unicode in 'qwertyuiopasdfghjklzxcvbnm':
@@ -565,6 +572,11 @@ def settings_screen():
                         k_shoot = event.unicode
                     inp_shoot = False
                     color_shoot = (0, 0, 0)
+                elif inp_jump:
+                    if event.unicode in 'qwertyuiopasdfghjklzxcvbnm ':
+                        k_jump = event.unicode
+                    inp_jump = False
+                    color_jump = (0, 0, 0)
                 if event.key == pygame.K_ESCAPE:
                     start_screen()
                     # exit to main menu
@@ -577,6 +589,7 @@ def settings_screen():
         screen.blit(pergament, (394, 144))
         screen.blit(pergament, (394, 194))
         screen.blit(pergament, (394, 244))
+        screen.blit(pergament, (394, 294))
         print_text('Движение вправо', 50, 50)
         print_text(k_right, 400, 50, color_right)
         print_text('Движение влево', 50, 100)
@@ -587,6 +600,12 @@ def settings_screen():
         print_text(k_down, 400, 200, color_down)
         print_text('Стрелять', 50, 250)
         print_text(k_shoot, 400, 250, color_shoot)
+        print_text('Прыжок', 50, 300)
+        if k_jump == ' ':
+            print_text('''SPA
+CE''', 400, 300, color_jump, 12)
+        else:
+            print_text(k_jump, 400, 300, color_jump)
         draw.rect(screen, Color('white'), (550, 525, 100, 50))
         print_text('OK', 580, 535)
         if error:
