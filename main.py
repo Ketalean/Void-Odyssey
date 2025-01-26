@@ -200,12 +200,13 @@ class RealPlayer(Player):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.look = 'right'
-        self.jump = False
         self.y0 = self.y
         self.v0 = 50
         self.t = 0
-        self.G = 7
+        self.G = 9.8
         self.vy = 0
+        self.need_jump = False
+
     def move(self, direction):
         SPEED = 5
         if direction == 'r':
@@ -222,10 +223,19 @@ class RealPlayer(Player):
             else:
                 self.rect = self.rect.move(800, 0)
                 self.x = 800
-        elif direction == 'j':
+
+    def jump(self):
+        if self.need_jump:
             if self.v0:
                 self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
                 self.vy = self.v0 - self.G * self.t
+                self.t += 0.4
+            if self.y > self.y0:
+                self.v0 = 50
+                self.t = 0
+                self.y = self.y0
+                self.need_jump = False
+            self.rect.y = self.y
 
 # основной персонаж
 player = None
@@ -387,8 +397,8 @@ def first_level():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
-                elif event.key == pygame.K_SPACE and (375 <= player.x <= 390) and (270 <= player.y <= 290):
-                    first_level()
+                elif event.unicode == k_jump:
+                    player.need_jump = True
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -422,6 +432,7 @@ def first_level():
             else:
                 Electro_Ball(load_image("electro-ball-left.png"), 3, 2, player.x, player.y, player.look)
             shoot_time = False
+        player.jump()
         # Time
         pygame.display.flip()
         if player.k < 3:
