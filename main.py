@@ -215,12 +215,26 @@ class RealPlayer(Player):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.look = 'right'
-        self.jump = False
         self.y0 = self.y
         self.v0 = 50
         self.t = 0
         self.G = 7
         self.vy = 0
+        self.need_jump = False
+        self.hit_points = 100
+
+    def jump(self):
+        if self.need_jump:
+            if self.v0:
+                self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
+                self.vy = self.v0 - self.G * self.t
+                self.t += 0.4
+            if self.y > self.y0:
+                self.v0 = 50
+                self.t = 0
+                self.y = self.y0
+                self.need_jump = False
+            self.rect.y = self.y
 
     def move(self, direction):
         SPEED = 5
@@ -243,8 +257,40 @@ class RealPlayer(Player):
                 self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
                 self.vy = self.v0 - self.G * self.t
 
+
+class DarkLord(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(enemy_group)
+        self.hit_points = 1000
+        self.pos = [x, y]
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.x = x
+        self.y = y
+        self.k = 0
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        if self.k == 3:
+            self.cur_frame = (self.cur_frame + 1) % 20
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+
 # основной персонаж
 player = None
+darklord = None
 
 # группы спрайтов
 all_sprites = pygame.sprite.Group()
@@ -252,6 +298,7 @@ player_group = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 ball_group = pygame.sprite.Group()
 portals_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -387,6 +434,7 @@ def first_level():
     pygame.mouse.set_visible(False)
     player.kill()
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
+    darklord = DarkLord(load_image("shadow.png"), 4, 5, 600, 400)
     go_right = False
     go_left = False
     shoot_time = False
@@ -414,20 +462,20 @@ def first_level():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 300)
                     shoot = True
+                elif event.unicode == k_jump:
+                    player.need_jump = True
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
                 elif event.unicode == k_left:
                     go_left = False
-                elif event.unicode == k_up:
-                    go_up = False
-                elif event.unicode == k_down:
-                    go_down = False
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 0)
                     shoot = False
         # Painting
         screen.fill((0, 0, 0))
+        fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+        screen.blit(fon, (0, 0))
         if go_right:
             player_group.draw(screen)
             player.update('r')
@@ -447,10 +495,14 @@ def first_level():
             else:
                 Electro_Ball(load_image("electro-ball-left.png"), 3, 2, player.x, player.y, player.look)
             shoot_time = False
+        darklord.update()
+        player.jump()
         # Time
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
+        if darklord.k < 3:
+            darklord.k += 1
         clock.tick(FPS)
     pygame.quit()
 
