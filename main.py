@@ -284,15 +284,16 @@ class DarkLord(pygame.sprite.Sprite):
             if self.state == 'spawn':
                 self.cur_frame = (self.cur_frame + 1) % len(self.frames)
                 self.image = self.frames[self.cur_frame]
-                if self.cur_frame == 19:
+                if self.cur_frame == 16:
                     self.state = 'stay'
-                    self.cur_frame = 12
             elif self.state == 'stay':
                 if self.cur_frame < 19:
                     self.cur_frame = self.cur_frame + 1
                 else:
                     self.cur_frame = 16
-                self.image = self.frames[self.cur_frame]
+            elif self.state == 'death':
+                pass
+            self.image = self.frames[self.cur_frame]
             self.k = 0
 
     def move(self):
@@ -300,10 +301,10 @@ class DarkLord(pygame.sprite.Sprite):
         old_x = self.x
         self.x = randint(50, 650)
         if old_x > self.x:
-            self.rect.move(-(old_x - self.x), 0)
+            self.rect = self.rect.move(-(old_x - self.x), 0)
         else:
-            self.rect.move(self.x - old_x, 0)
-        self.state = 'stay'
+            self.rect = self.rect.move(self.x - old_x, 0)
+        self.update()
 
 
 # основной персонаж
@@ -449,7 +450,7 @@ def first_level():
     global player
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
-    pygame.time.set_timer(BOSSMOVEEVENTTYPE, 2500)
+    pygame.time.set_timer(BOSSMOVEEVENTTYPE, 3500)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
@@ -473,7 +474,7 @@ def first_level():
                 shoot_time = True
             else:
                 shoot_time = False
-            if event.type == BOSSMOVEEVENTTYPE:
+            if event.type == BOSSMOVEEVENTTYPE and darklord.hit_points != 0:
                 need_move_boss = True
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
@@ -500,10 +501,11 @@ def first_level():
         fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
         if need_move_boss:
+            darklord.k = 6
+            darklord.cur_frame = 0
             darklord.move()
             need_move_boss = False
         enemy_group.draw(screen)
-        darklord.update()
         if go_right:
             player_group.draw(screen)
             player.update('r')
@@ -528,16 +530,40 @@ def first_level():
             shoot_time = False
         darklord.update()
         player.jump()
+        print(darklord.state)
         if balls:
             for b in balls:
-                if b.hit(darklord.x, darklord.y, darklord.width, darklord.height) or b.x < 0 or b.x > 800:
+                # 1 вариант стрельбы
+                # if ((b.hit(darklord.x, darklord.y, darklord.width, darklord.height) or b.x < 0 or b.x > 800)
+                #         and (darklord.hit_points > 0) and (darklord.state == 'stay')):
+                #     balls.remove(b)
+                #     print(darklord.state)
+                #     darklord.hit_points -= 50
+
+                # 2 вариант стрельбы (усложняет попадание)
+                if (pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and (darklord.state == 'stay'):
+                    b.kill()
                     balls.remove(b)
+                    darklord.hit_points -= 50
+        # if darklord.hit_points < 500:
+        #     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1500)
+        if darklord.hit_points == 0:
+            darklord.state = 'death'
+            darklord.k = 6
+            if darklord.cur_frame > 0:
+                darklord.cur_frame -= 1
+            darklord.update()
+            print(darklord.cur_frame)
+            if darklord.cur_frame == 0:
+                darklord.kill()
+                print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
         # Time
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
         if darklord.k < 6:
             darklord.k += 1
+        print(darklord.hit_points)
         clock.tick(FPS)
     pygame.quit()
 
