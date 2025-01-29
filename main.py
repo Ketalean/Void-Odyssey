@@ -2,6 +2,7 @@ import pygame
 import os
 import sys
 from pygame import draw, Color
+from random import randint
 
 FPS = 60
 
@@ -65,6 +66,12 @@ class Electro_Ball(pygame.sprite.Sprite):
         self.y = y
         self.direction = direction
 
+    def hit(self, enemy_x, enemy_y, width, height):
+        if self.rect.colliderect((enemy_x, enemy_y, width, height)):
+            self.kill()
+            return True
+        return False
+
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
@@ -88,8 +95,6 @@ class Electro_Ball(pygame.sprite.Sprite):
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
-
-ball = None
 
 player_image = load_image('hero.png')
 
@@ -237,25 +242,15 @@ class RealPlayer(Player):
             self.rect.y = self.y
 
     def move(self, direction):
-        SPEED = 5
+        SPEED = 7
         if direction == 'r':
-            if self.x < WIDTH:
+            if self.x < WIDTH - 60:
                 self.x += SPEED
                 self.rect = self.rect.move(SPEED, 0)
-            else:
-                self.rect = self.rect.move(-800, 0)
-                self.x = 0
         elif direction == 'l':
             if self.x > 0:
                 self.x -= SPEED
                 self.rect = self.rect.move(-SPEED, 0)
-            else:
-                self.rect = self.rect.move(800, 0)
-                self.x = 800
-        elif direction == 'j':
-            if self.v0:
-                self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
-                self.vy = self.v0 - self.G * self.t
 
 
 class DarkLord(pygame.sprite.Sprite):
@@ -270,7 +265,10 @@ class DarkLord(pygame.sprite.Sprite):
         self.rect = self.rect.move(x, y)
         self.x = x
         self.y = y
+        self.width = self.rect.width
+        self.height = self.rect.height
         self.k = 0
+        self.state = 'spawn'
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -282,10 +280,30 @@ class DarkLord(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
-        if self.k == 3:
-            self.cur_frame = (self.cur_frame + 1) % 20
-            self.image = self.frames[self.cur_frame]
+        if self.k == 6:
+            if self.state == 'spawn':
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+                if self.cur_frame == 19:
+                    self.state = 'stay'
+                    self.cur_frame = 12
+            elif self.state == 'stay':
+                if self.cur_frame < 19:
+                    self.cur_frame = self.cur_frame + 1
+                else:
+                    self.cur_frame = 16
+                self.image = self.frames[self.cur_frame]
             self.k = 0
+
+    def move(self):
+        self.state = 'spawn'
+        old_x = self.x
+        self.x = randint(50, 650)
+        if old_x > self.x:
+            self.rect.move(-(old_x - self.x), 0)
+        else:
+            self.rect.move(self.x - old_x, 0)
+        self.state = 'stay'
 
 
 # основной персонаж
@@ -430,17 +448,20 @@ def game():
 def first_level():
     global player
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
+    BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
+    pygame.time.set_timer(BOSSMOVEEVENTTYPE, 2500)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
-    darklord = DarkLord(load_image("shadow.png"), 4, 5, 600, 400)
+    darklord = DarkLord(load_image("shadow3.png"), 4, 5, 600, 340)
+    balls = []
     go_right = False
     go_left = False
     shoot_time = False
     shoot = False
     running = True
-    jump = False
+    need_move_boss = False
     while running:
         # Events
         for event in pygame.event.get():
@@ -452,6 +473,8 @@ def first_level():
                 shoot_time = True
             else:
                 shoot_time = False
+            if event.type == BOSSMOVEEVENTTYPE:
+                need_move_boss = True
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -476,6 +499,11 @@ def first_level():
         screen.fill((0, 0, 0))
         fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
+        if need_move_boss:
+            darklord.move()
+            need_move_boss = False
+        enemy_group.draw(screen)
+        darklord.update()
         if go_right:
             player_group.draw(screen)
             player.update('r')
@@ -491,17 +519,24 @@ def first_level():
         ball_group.draw(screen)
         if shoot_time:
             if player.look == 'right':
-                Electro_Ball(load_image("electro-ball-right.png"), 3, 2, player.x, player.y, player.look)
+                ball = Electro_Ball(load_image("electro-ball-right.png"), 3,
+                                    2, player.x, player.y, player.look)
             else:
-                Electro_Ball(load_image("electro-ball-left.png"), 3, 2, player.x, player.y, player.look)
+                ball = Electro_Ball(load_image("electro-ball-left.png"), 3,
+                                    2, player.x, player.y, player.look)
+            balls.append(ball)
             shoot_time = False
         darklord.update()
         player.jump()
+        if balls:
+            for b in balls:
+                if b.hit(darklord.x, darklord.y, darklord.width, darklord.height) or b.x < 0 or b.x > 800:
+                    balls.remove(b)
         # Time
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
-        if darklord.k < 3:
+        if darklord.k < 6:
             darklord.k += 1
         clock.tick(FPS)
     pygame.quit()
