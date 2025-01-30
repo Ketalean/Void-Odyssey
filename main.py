@@ -226,7 +226,7 @@ class RealPlayer(Player):
         self.G = 7
         self.vy = 0
         self.need_jump = False
-        self.hit_points = 100
+        self.hit_points = 3
 
     def jump(self):
         if self.need_jump:
@@ -307,6 +307,68 @@ class DarkLord(pygame.sprite.Sprite):
         self.update()
 
 
+class Tentacl(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(enemy_attack_group)
+        self.hit_points = 30
+        self.pos = [x, y]
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.x = x
+        self.y = y
+        self.width = self.rect.width
+        self.height = self.rect.height
+        self.k = 0
+        self.state = 'spawn'
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        if self.k == 6:
+            if self.state == 'spawn':
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+                if self.cur_frame == 8:
+                    self.state = 'stay'
+            elif self.state == 'stay':
+                if self.cur_frame < 15:
+                    self.cur_frame = self.cur_frame + 1
+                else:
+                    self.cur_frame = 8
+            elif self.state == 'death':
+                pass
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+
+class Hole(Tentacl):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(sheet, columns, rows, x, y)
+
+    def update(self):
+        if self.k == 16:
+            if self.state == 'spawn':
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+                if self.cur_frame == 4:
+                    self.state = 'stay'
+            elif self.state == 'stay':
+                self.cur_frame = 4
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+
+
 # основной персонаж
 player = None
 darklord = None
@@ -318,6 +380,7 @@ tiles_group = pygame.sprite.Group()
 ball_group = pygame.sprite.Group()
 portals_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
+enemy_attack_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -361,7 +424,7 @@ def game():
     go_down = False
     shoot = False
     shoot_time = False
-    portal = Portal(1, 1) # test
+    portal = Portal(1, 1)  # test
     leave = False
     while running:
         # Events
@@ -450,19 +513,27 @@ def first_level():
     global player
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
+    BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
+    SPAWNHOLESEVENTTYPE = pygame.USEREVENT + 4
     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 3500)
+    pygame.time.set_timer(BOSSATTACKEVENTTIME, 5000)
+    pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 2000)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
     darklord = DarkLord(load_image("shadow3.png"), 4, 5, 600, 340)
     balls = []
+    holes = []
+    tentacles = []
     go_right = False
     go_left = False
     shoot_time = False
     shoot = False
     running = True
     need_move_boss = False
+    hole_spawn = False
+    boss_attack = False
     while running:
         # Events
         for event in pygame.event.get():
@@ -476,6 +547,10 @@ def first_level():
                 shoot_time = False
             if event.type == BOSSMOVEEVENTTYPE and darklord.hit_points != 0:
                 need_move_boss = True
+            if event.type == BOSSATTACKEVENTTIME:
+                boss_attack = True
+            if event.type == SPAWNHOLESEVENTTYPE and darklord.state == 'stay':
+                hole_spawn = True
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -505,7 +580,21 @@ def first_level():
             darklord.cur_frame = 0
             darklord.move()
             need_move_boss = False
+        if hole_spawn and len(tentacles) < 8:
+            hole = Hole(load_image('tntcl_spawn.png'), 5, 1, player.x, 470)
+            holes.append(hole)
+            enemy_attack_group.add(hole)
+            hole_spawn = False
+        if boss_attack and len(tentacles) < 8:
+            for h in holes:
+                tentacle = Tentacl(load_image('tentacles.png'), 8, 2, h.x, 350)
+                h.kill()
+                holes.remove(h)
+                tentacles.append(tentacle)
+            boss_attack = False
         enemy_group.draw(screen)
+        enemy_attack_group.update()
+        enemy_attack_group.draw(screen)
         if go_right:
             player_group.draw(screen)
             player.update('r')
@@ -530,7 +619,6 @@ def first_level():
             shoot_time = False
         darklord.update()
         player.jump()
-        print(darklord.state)
         if balls:
             for b in balls:
                 # 1 вариант стрельбы
@@ -541,19 +629,38 @@ def first_level():
                 #     darklord.hit_points -= 50
 
                 # 2 вариант стрельбы (усложняет попадание)
-                if (pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and (darklord.state == 'stay'):
+                if ((pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and
+                        (darklord.state == 'stay')):
                     b.kill()
                     balls.remove(b)
-                    darklord.hit_points -= 50
+                    darklord.hit_points -= 10
+                elif b.x < 0 or b.x > 800:
+                    b.kill()
+                    balls.remove(b)
+                for t in tentacles:
+                    if (pygame.sprite.collide_mask(b, t)) and (t.hit_points > 0):
+                        t.hit_points -= 10
+                        b.kill()
+                        balls.remove(b)
+                    if t.hit_points <= 0:
+                        t.kill()
+                        tentacles.remove(t)
         # if darklord.hit_points < 500:
         #     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1500)
+        if tentacles:
+            for t in tentacles:
+                if t.k < 6:
+                    t.k += 1
+        if holes:
+            for h in holes:
+                if h.k < 16:
+                    h.k += 1
         if darklord.hit_points == 0:
             darklord.state = 'death'
             darklord.k = 6
             if darklord.cur_frame > 0:
                 darklord.cur_frame -= 1
             darklord.update()
-            print(darklord.cur_frame)
             if darklord.cur_frame == 0:
                 darklord.kill()
                 print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
@@ -563,7 +670,6 @@ def first_level():
             player.k += 1
         if darklord.k < 6:
             darklord.k += 1
-        print(darklord.hit_points)
         clock.tick(FPS)
     pygame.quit()
 
