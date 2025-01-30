@@ -634,14 +634,15 @@ def first_level():
                     b.kill()
                     balls.remove(b)
                     darklord.hit_points -= 10
-                elif b.x < 0 or b.x > 800:
+                elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
                 for t in tentacles:
                     if (pygame.sprite.collide_mask(b, t)) and (t.hit_points > 0):
                         t.hit_points -= 10
                         b.kill()
-                        balls.remove(b)
+                        if b in balls:
+                            balls.remove(b)
                     if t.hit_points <= 0:
                         t.kill()
                         tentacles.remove(t)
