@@ -1,4 +1,5 @@
 import pygame
+import sqlite3
 import os
 import sys
 from pygame import draw, Color
@@ -124,6 +125,30 @@ class Portal(pygame.sprite.Sprite):
             tile_width * pos_x, tile_height * pos_y)
         # вычисляем маску для эффективного сравнения
         self.mask = pygame.mask.from_surface(self.image)
+
+
+class Coin(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(coin_group)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.k = 0
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+    def update(self):
+        if self.k == 10:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
 
 
 class Player(pygame.sprite.Sprite):
@@ -381,6 +406,7 @@ ball_group = pygame.sprite.Group()
 portals_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 enemy_attack_group = pygame.sprite.Group()
+coin_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -410,7 +436,8 @@ def terminate():
 
 
 def game():
-    global player
+    global player, finished_levels
+    check_level()
     # набросок первого уровня игры
     level = load_level('map.txt')
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
@@ -493,10 +520,13 @@ def game():
             hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
         if pygame.sprite.collide_mask(player, portal):
-            if leave:
-                first_level()
+            if 1 not in finished_levels:
+                if leave:
+                    first_level()
+                else:
+                    print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
             else:
-                print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
+                print_text('Уровень пройден', 130, 50, (0, 0, 0), 20)
         else:
             leave = False
         ball_group.update()
@@ -524,6 +554,7 @@ def first_level():
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
     darklord = DarkLord(load_image("shadow3.png"), 4, 5, 600, 340)
     balls = []
+    coins = []
     holes = []
     tentacles = []
     go_right = False
@@ -531,6 +562,7 @@ def first_level():
     shoot_time = False
     shoot = False
     running = True
+    check_coins = True
     need_move_boss = False
     hole_spawn = False
     boss_attack = False
@@ -619,6 +651,7 @@ def first_level():
             shoot_time = False
         darklord.update()
         player.jump()
+        coin_group.draw(screen)
         if balls:
             for b in balls:
                 # 1 вариант стрельбы
@@ -633,7 +666,7 @@ def first_level():
                         (darklord.state == 'stay')):
                     b.kill()
                     balls.remove(b)
-                    darklord.hit_points -= 10
+                    darklord.hit_points -= 500
                 elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
@@ -646,6 +679,7 @@ def first_level():
                     if t.hit_points <= 0:
                         t.kill()
                         tentacles.remove(t)
+        # в будущем смена скорости босса в зависимости от хп
         # if darklord.hit_points < 500:
         #     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1500)
         if tentacles:
@@ -665,6 +699,30 @@ def first_level():
             if darklord.cur_frame == 0:
                 darklord.kill()
                 print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
+        if darklord.state == 'death':
+            # для монеток
+            if check_coins is True:
+                if not coins:
+                    for i in range(3):
+                        d = i * 45
+                        coin = Coin(load_image("coins.png"), 6, 1, darklord.x + d, darklord.y + 64)
+                        coins.append(coin)
+                for c in coins:
+                    c.update()
+                    if c.k < 10:
+                        c.k += 1
+                    if pygame.sprite.collide_mask(player, c):
+                        c.kill()
+                        coins.remove(c)
+                        if not coins:
+                            check_coins = False
+                            new_balance = get_balance() + 3
+                            # в будущем обновление баланса игрока
+                            # update_balance(new_balance)
+                            player.kill()
+                            # в будущем занесение пройденного уровня в бд
+                            # finish_level(1)
+                            game()
         # Time
         pygame.display.flip()
         if player.k < 3:
@@ -886,6 +944,54 @@ def print_text(message, x, y, color=(0, 0, 0), font_size=30, font_type='DreiFrak
     font = pygame.font.Font(fullname, font_size)
     text = font.render(message, True, color)
     screen.blit(text, (x, y))
+
+
+def get_balance():
+    """получить баланс игрока"""
+    filename = os.path.join('data', 'localgamedb.sql')
+    con = sqlite3.connect(filename)
+    cur = con.cursor()
+    current_balance = cur.execute('''select balance
+             from player where id=?''', (1,)).fetchone()[0]
+    con.close()
+    return current_balance
+
+
+def update_balance(n):
+    """обновить баланс игрока на n монет"""
+    filename = os.path.join('data', 'localgamedb.sql')
+    con = sqlite3.connect(filename)
+    cur = con.cursor()
+    cur.execute('''UPDATE Player
+                SET balance = ?
+                WHERE id = 1''', (n,))
+    con.commit()
+    con.close()
+
+
+def finish_level(level_id):
+    """добавление пройденного уровня в бд"""
+    filename = os.path.join('data', 'localgamedb.sql')
+    con = sqlite3.connect(filename)
+    cur = con.cursor()
+    cur.execute('''INSERT INTO Levels(user_id,level_id)
+                             VALUES(?,?)''', (1, level_id))
+    con.commit()
+    con.close()
+
+
+def check_level():
+    """получение списка пройденных уровней игрока"""
+    global finished_levels
+    finished_levels = []
+    filename = os.path.join('data', 'localgamedb.sql')
+    con = sqlite3.connect(filename)
+    cur = con.cursor()
+    levels = cur.execute('''select level_id
+             from Levels where user_id=?''', (1,)).fetchall()
+    con.close()
+    for el in levels:
+        finished_levels.append(el[0])
 
 
 start_screen()
