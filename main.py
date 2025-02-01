@@ -21,6 +21,7 @@ k_up = 'w'
 k_down = 's'
 k_shoot = 'l'
 k_jump = ' '
+k_dash = 'p'
 
 
 def load_image(name, colorkey=None):
@@ -136,6 +137,7 @@ class Coin(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
         self.k = 0
+
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
@@ -144,6 +146,7 @@ class Coin(pygame.sprite.Sprite):
                 frame_location = (self.rect.w * i, self.rect.h * j)
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
+
     def update(self):
         if self.k == 10:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
@@ -266,16 +269,15 @@ class RealPlayer(Player):
                 self.need_jump = False
             self.rect.y = self.y
 
-    def move(self, direction):
-        SPEED = 7
+    def move(self, direction, speed=7):
         if direction == 'r':
             if self.x < WIDTH - 60:
-                self.x += SPEED
-                self.rect = self.rect.move(SPEED, 0)
+                self.x += speed
+                self.rect = self.rect.move(speed, 0)
         elif direction == 'l':
             if self.x > 0:
-                self.x -= SPEED
-                self.rect = self.rect.move(-SPEED, 0)
+                self.x -= speed
+                self.rect = self.rect.move(-speed, 0)
 
 
 class DarkLord(pygame.sprite.Sprite):
@@ -335,7 +337,7 @@ class DarkLord(pygame.sprite.Sprite):
 class Tentacl(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_attack_group)
-        self.hit_points = 30
+        self.hit_points = 40
         self.pos = [x, y]
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
@@ -393,7 +395,6 @@ class Hole(Tentacl):
             self.k = 0
 
 
-
 # основной персонаж
 player = None
 darklord = None
@@ -449,8 +450,6 @@ def game():
     go_left = False
     go_up = False
     go_down = False
-    shoot = False
-    shoot_time = False
     portal = Portal(1, 1)  # test
     leave = False
     while running:
@@ -545,9 +544,13 @@ def first_level():
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
     SPAWNHOLESEVENTTYPE = pygame.USEREVENT + 4
+    DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
+    PLAYERRESISTANCEEVENTTYPE = pygame.USEREVENT + 6
     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 3500)
-    pygame.time.set_timer(BOSSATTACKEVENTTIME, 5000)
-    pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 2000)
+    pygame.time.set_timer(BOSSATTACKEVENTTIME, 4100)
+    pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1500)
+    pygame.time.set_timer(DASHAVAILABLEEVENTTYPE, 1000)
+    pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
@@ -566,6 +569,10 @@ def first_level():
     need_move_boss = False
     hole_spawn = False
     boss_attack = False
+    dash_available = True
+    player_resistance = False
+    change_available = True
+    lvl_up = 2
     while running:
         # Events
         for event in pygame.event.get():
@@ -583,10 +590,22 @@ def first_level():
                 boss_attack = True
             if event.type == SPAWNHOLESEVENTTYPE and darklord.state == 'stay':
                 hole_spawn = True
+            if event.type == DASHAVAILABLEEVENTTYPE:
+                dash_available = True
+            if event.type == PLAYERRESISTANCEEVENTTYPE:
+                player_resistance = False
+                change_available = True
+                pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
                     player.look = 'right'
+                elif event.unicode == k_dash and dash_available:
+                    dash_available = False
+                    if player.look == 'right':
+                        player.move('r', 100)
+                    else:
+                        player.move('l', 100)
                 elif event.unicode == k_left:
                     go_left = True
                     player.look = 'left'
@@ -603,10 +622,32 @@ def first_level():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 0)
                     shoot = False
+        if player_resistance and change_available:
+            pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 5000)
+            change_available = False
         # Painting
         screen.fill((0, 0, 0))
         fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
+        screen.blit(load_image('heart_space.png'), (20, 20))
+        screen.blit(load_image('heart_space.png'), (80, 20))
+        screen.blit(load_image('heart_space.png'), (140, 20))
+        if player.hit_points >= 1:
+            screen.blit(load_image('heart_full.png'), (20, 20))
+            if player.hit_points >= 2:
+                screen.blit(load_image('heart_full.png'), (80, 20))
+                if player.hit_points == 3:
+                    screen.blit(load_image('heart_full.png'), (140, 20))
+        if darklord.hit_points <= 300 and lvl_up == 1:
+            lvl_up -= 1
+            pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1750)
+            pygame.time.set_timer(BOSSATTACKEVENTTIME, 2050)
+            pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 750)
+        elif darklord.hit_points <= 600 and lvl_up == 2:
+            lvl_up -= 1
+            pygame.time.set_timer(BOSSMOVEEVENTTYPE, 2300)
+            pygame.time.set_timer(BOSSATTACKEVENTTIME, 2700)
+            pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1000)
         if need_move_boss:
             darklord.k = 6
             darklord.cur_frame = 0
@@ -617,13 +658,22 @@ def first_level():
             holes.append(hole)
             enemy_attack_group.add(hole)
             hole_spawn = False
-        if boss_attack and len(tentacles) < 8:
+        if boss_attack and len(tentacles) < 8 and darklord.state != 'death':
             for h in holes:
                 tentacle = Tentacl(load_image('tentacles.png'), 8, 2, h.x, 350)
                 h.kill()
                 holes.remove(h)
                 tentacles.append(tentacle)
             boss_attack = False
+        if darklord.state == 'death':
+            for h in holes:
+                h.kill()
+                if h in holes:
+                    holes.remove(h)
+            for t in tentacles:
+                t.kill()
+                if t in tentacles:
+                    tentacles.remove(t)
         enemy_group.draw(screen)
         enemy_attack_group.update()
         enemy_attack_group.draw(screen)
@@ -640,6 +690,7 @@ def first_level():
             screen.blit(hero, (player.x, player.y))
         ball_group.update()
         ball_group.draw(screen)
+
         if shoot_time:
             if player.look == 'right':
                 ball = Electro_Ball(load_image("electro-ball-right.png"), 3,
@@ -666,7 +717,7 @@ def first_level():
                         (darklord.state == 'stay')):
                     b.kill()
                     balls.remove(b)
-                    darklord.hit_points -= 500
+                    darklord.hit_points -= 100
                 elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
@@ -686,6 +737,14 @@ def first_level():
             for t in tentacles:
                 if t.k < 6:
                     t.k += 1
+                if pygame.sprite.collide_mask(player, t) and t.state == 'stay' and not player_resistance:
+                    player.hit_points -= 1
+                    player_resistance = True
+                    t.kill()
+                    tentacles.remove(t)
+        if pygame.sprite.collide_mask(player, darklord) and darklord.state == 'stay' and not player_resistance:
+            player_resistance = True
+            player.hit_points -= 1
         if holes:
             for h in holes:
                 if h.k < 16:
@@ -774,7 +833,7 @@ def start_screen():
 
 
 def settings_screen():
-    global x, y, k_right, k_left, k_up, k_down, k_shoot, k_jump
+    global x, y, k_right, k_left, k_up, k_down, k_shoot, k_jump, k_dash
     error = False
     pygame.display.set_caption('Settings')
     color_right = (0, 0, 0)  # цвет надписи, отвечающий за кнопку "вправо". Далее по аналогии
@@ -789,6 +848,8 @@ def settings_screen():
     inp_shoot = False
     color_jump = (0, 0, 0)
     inp_jump = False
+    color_dash = (0, 0, 0)
+    inp_dash = False
     pygame.mouse.set_visible(False)
     running = True
     while running:
@@ -802,11 +863,11 @@ def settings_screen():
                 x, y = event.pos
                 if 550 <= x <= 650 and 525 <= y <= 575:
                     #  проверяет, всё ли хорошо с настройками
-                    if (len(set(list([k_right, k_left, k_up, k_down, k_shoot]))) ==
-                            len([k_right, k_left, k_up, k_down, k_shoot]) and
-                            len([k_right, k_left, k_up, k_down, k_shoot]) ==
-                            len(''.join([k_right, k_left, k_up, k_down, k_shoot]))):
-                        return [k_right, k_left, k_up, k_down, k_shoot]
+                    if (len(set(list([k_right, k_left, k_up, k_down, k_shoot, k_dash]))) ==
+                            len([k_right, k_left, k_up, k_down, k_shoot, k_dash]) and
+                            len([k_right, k_left, k_up, k_down, k_shoot, k_dash]) ==
+                            len(''.join([k_right, k_left, k_up, k_down, k_shoot, k_dash]))):
+                        return [k_right, k_left, k_up, k_down, k_shoot, k_dash]
                     else:
                         error = True
                 if 337 <= x <= 412 and 350 <= y <= 390 and error:
@@ -847,6 +908,12 @@ def settings_screen():
                 else:
                     color_jump = (0, 0, 0)
                     inp_jump = False
+                if 375 <= x <= 405 and 344 <= y <= 385:
+                    color_dash = (150, 150, 150)
+                    inp_dash = True
+                else:
+                    color_dash = (0, 0, 0)
+                    inp_dash = False
             elif event.type == pygame.KEYDOWN:
                 if inp_right:
                     if event.unicode in 'qwertyuiopasdfghjklzxcvbnm':
@@ -878,6 +945,11 @@ def settings_screen():
                         k_jump = event.unicode
                     inp_jump = False
                     color_jump = (0, 0, 0)
+                elif inp_dash:
+                    if event.unicode in 'qwertyuiopasdfghjklzxcvbnm ':
+                        k_dash = event.unicode
+                    inp_dash = False
+                    color_dash = (0, 0, 0)
                 if event.key == pygame.K_ESCAPE:
                     start_screen()
                     # exit to main menu
@@ -891,6 +963,7 @@ def settings_screen():
         screen.blit(pergament, (394, 194))
         screen.blit(pergament, (394, 244))
         screen.blit(pergament, (394, 294))
+        screen.blit(pergament, (394, 344))
         print_text('Движение вправо', 50, 50)
         print_text(k_right, 400, 50, color_right)
         print_text('Движение влево', 50, 100)
@@ -902,6 +975,8 @@ def settings_screen():
         print_text('Стрелять', 50, 250)
         print_text(k_shoot, 400, 250, color_shoot)
         print_text('Прыжок', 50, 300)
+        print_text(k_dash, 400, 350, color_dash)
+        print_text('Рывок', 50, 350)
         if k_jump == ' ':
             print_text('''SPA
 CE''', 400, 300, color_jump, 12)
