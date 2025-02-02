@@ -379,6 +379,71 @@ class Tentacl(pygame.sprite.Sprite):
             self.k = 0
 
 
+class Flame_Ball(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(enemy_attack_group)
+        self.pos = [x, y]
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.x = x
+        self.y = y
+        self.width = self.rect.width
+        self.height = self.rect.height
+        self.k = 0
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        if self.k == 6:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+    def spawn(self, x, y):
+        pos = (x, y)
+        SPEED = 1
+        if self.x == x and self.y == y:
+            return
+        if pos[0] == self.x:
+            if self.y < pos[1]:
+                self.y += SPEED
+                self.rect = self.rect.move(0, SPEED)
+            else:
+                self.y -= SPEED
+                self.rect = self.rect.move(0, -SPEED)
+        elif pos[1] == self.y:
+            if self.x < pos[0]:
+                self.x += SPEED
+                self.rect = self.rect.move(SPEED, 0)
+            else:
+                self.x -= SPEED
+                self.rect = self.rect.move(-SPEED, 0)
+        else:
+            if self.x < pos[0]:
+                self.x += SPEED
+                self.rect = self.rect.move(SPEED, 0)
+            else:
+                self.x -= SPEED
+                self.rect = self.rect.move(-SPEED, 0)
+            if self.y < pos[1]:
+                self.y += 1
+                self.rect = self.rect.move(0, SPEED)
+            else:
+                self.y -= SPEED
+                self.rect = self.rect.move(0, -SPEED)
+
+
 class Hole(Tentacl):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
@@ -547,11 +612,13 @@ def first_level():
     SPAWNHOLESEVENTTYPE = pygame.USEREVENT + 4
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
     PLAYERRESISTANCEEVENTTYPE = pygame.USEREVENT + 6
+    BOSSBALLATTACKEVENTTIME = pygame.USEREVENT + 7
     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 3500)
     pygame.time.set_timer(BOSSATTACKEVENTTIME, 4100)
     pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1500)
     pygame.time.set_timer(DASHAVAILABLEEVENTTYPE, 1000)
     pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
+    pygame.time.set_timer(BOSSBALLATTACKEVENTTIME, 0)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
@@ -560,6 +627,7 @@ def first_level():
     hp_color = (200, 0, 0)
     killed_tntcls = 0
     balls = []
+    boss_balls = []
     coins = []
     holes = []
     tentacles = []
@@ -572,10 +640,14 @@ def first_level():
     need_move_boss = False
     hole_spawn = False
     boss_attack = False
+    boss_ball_attack = False
     dash_available = True
     player_resistance = False
     change_available = True
+    right_pos = False
     stop = False
+    target_x = 0
+    target_y = 0
     lvl_up = 2
     while running:
         # Events
@@ -592,6 +664,10 @@ def first_level():
                 need_move_boss = True
             if event.type == BOSSATTACKEVENTTIME:
                 boss_attack = True
+            if event.type == BOSSBALLATTACKEVENTTIME:
+                boss_ball_attack = True
+                n = 450
+                right_pos = False
             if event.type == SPAWNHOLESEVENTTYPE and darklord.state == 'stay':
                 hole_spawn = True
             if event.type == DASHAVAILABLEEVENTTYPE:
@@ -656,12 +732,14 @@ def first_level():
             pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1750)
             pygame.time.set_timer(BOSSATTACKEVENTTIME, 2050)
             pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 750)
+            pygame.time.set_timer(BOSSBALLATTACKEVENTTIME, 6000)
             hp_color = (100, 0, 50)
         elif darklord.hit_points <= 600 and lvl_up == 2:
             lvl_up -= 1
             pygame.time.set_timer(BOSSMOVEEVENTTYPE, 2300)
             pygame.time.set_timer(BOSSATTACKEVENTTIME, 2700)
             pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1000)
+            pygame.time.set_timer(BOSSBALLATTACKEVENTTIME, 10000)
             hp_color = (150, 0, 0)
         if need_move_boss:
             darklord.k = 6
@@ -673,6 +751,46 @@ def first_level():
             holes.append(hole)
             enemy_attack_group.add(hole)
             hole_spawn = False
+        if boss_ball_attack and darklord.state != 'death' and len(boss_balls) <= 4:
+            for i in range(4):
+                boss_ball = Flame_Ball(load_image('flameball.png'), 4, 1, darklord.x + 50, darklord.y + 50)
+                boss_balls.append(boss_ball)
+            boss_ball_attack = False
+        if boss_balls:
+            n = 450
+            n_right_pos = 0
+            if not right_pos:
+                for b in boss_balls:
+                    if b.k < 6:
+                        b.k += 1
+                    b.spawn(n, 300)
+                    if b.x == n and b.y == 300:
+                        n_right_pos += 1
+                    if pygame.sprite.collide_mask(player, b):
+                        player.hit_points -= 1
+                        player_resistance = True
+                        b.kill()
+                        boss_balls.remove(b)
+                    n += 50
+            if n_right_pos >= 4:
+                right_pos = True
+                target_x = player.x
+                target_y = player.y
+                n_right_pos = 0
+            if right_pos:
+                for b in boss_balls:
+                    if b.k < 6:
+                        b.k += 1
+                    b.spawn(target_x, target_y)
+                    if b.x == int(target_x) and b.y == int(target_y):
+                        b.kill()
+                        boss_balls.remove(b)
+                    if pygame.sprite.collide_mask(player, b):
+                        player.hit_points -= 1
+                        player_resistance = True
+                        b.kill()
+                        boss_balls.remove(b)
+
         if boss_attack and len(tentacles) < 8 and darklord.state != 'death':
             for h in holes:
                 tentacle = Tentacl(load_image('tentacles.png'), 8, 2, h.x, 350)
