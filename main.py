@@ -1,9 +1,10 @@
-import pygame
-import sqlite3
 import os
+import sqlite3
 import sys
-from pygame import draw, Color
 from random import randint
+
+import pygame
+from pygame import draw, Color
 
 FPS = 60
 
@@ -118,15 +119,29 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Portal(pygame.sprite.Sprite):
-    image = load_image("box.png")
-
-    def __init__(self, pos_x, pos_y):
+    def __init__(self, sheet, columns, rows, x, y):
         super().__init__(portals_group)
-        self.image = Portal.image
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x, tile_height * pos_y)
-        # вычисляем маску для эффективного сравнения
-        self.mask = pygame.mask.from_surface(self.image)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.k = 0
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        if self.k == 10:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
 
 
 class Coin(pygame.sprite.Sprite):
@@ -484,7 +499,6 @@ def generate_level(level):
                 Tile('empty', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
-                print(x, y)
             elif level[y][x] == '@':
                 Tile('empty', x, y)
     # вернем игрока, а также размер поля в клетках
@@ -509,14 +523,14 @@ def game():
     level = load_level('map.txt')
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     pygame.time.set_timer(SHOOTEVENTTYPE, 200)
-    player = Player(load_image("hero-move.png"), 3, 4, 100, 400)
+    player = Player(load_image("hero-move.png"), 3, 4, 385, 550)
     pygame.mouse.set_visible(False)
     running = True
     go_right = False
     go_left = False
     go_up = False
     go_down = False
-    portal = Portal(1, 1)  # test
+    portal = Portal(load_image("portal.png"), 5, 1, 64, 54)  # test
     leave = False
     while running:
         # Events
@@ -549,6 +563,7 @@ def game():
         screen.fill((0, 0, 0))
         tiles_group.draw(screen)
         portals_group.draw(screen)
+        portal.update()
         if go_up and go_right:
             player_group.draw(screen)
             player.update('u')
@@ -600,6 +615,8 @@ def game():
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
+        if portal.k < 10:
+            portal.k += 1
         clock.tick(FPS)
     pygame.quit()
 
