@@ -22,6 +22,7 @@ k_down = 's'
 k_shoot = 'l'
 k_jump = ' '
 k_dash = 'p'
+first_lvl_victory = False
 
 
 def load_image(name, colorkey=None):
@@ -539,7 +540,7 @@ def game():
 
 
 def first_level():
-    global player
+    global player, first_lvl_victory, x, y
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
@@ -556,6 +557,8 @@ def first_level():
     player.kill()
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
     darklord = DarkLord(load_image("shadow3.png"), 4, 5, 600, 340)
+    hp_color = (200, 0, 0)
+    killed_tntcls = 0
     balls = []
     coins = []
     holes = []
@@ -572,6 +575,7 @@ def first_level():
     dash_available = True
     player_resistance = False
     change_available = True
+    stop = False
     lvl_up = 2
     while running:
         # Events
@@ -596,6 +600,13 @@ def first_level():
                 player_resistance = False
                 change_available = True
                 pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
+            if event.type == pygame.MOUSEMOTION:
+                x, y = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                if ((450 <= x <= 550 and 350 <= y <= 400 and stop) or
+                        (425 <= x <= 550 and 350 <= y <= 400 and first_lvl_victory)):
+                    game()
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -623,7 +634,7 @@ def first_level():
                     pygame.time.set_timer(SHOOTEVENTTYPE, 0)
                     shoot = False
         if player_resistance and change_available:
-            pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 5000)
+            pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 3000)
             change_available = False
         # Painting
         screen.fill((0, 0, 0))
@@ -632,6 +643,8 @@ def first_level():
         screen.blit(load_image('heart_space.png'), (20, 20))
         screen.blit(load_image('heart_space.png'), (80, 20))
         screen.blit(load_image('heart_space.png'), (140, 20))
+        pygame.draw.rect(screen, hp_color, (200, 20, darklord.hit_points // 2, 20))
+        pygame.draw.rect(screen, (200, 200, 200), (200, 20, 500, 20), 2)
         if player.hit_points >= 1:
             screen.blit(load_image('heart_full.png'), (20, 20))
             if player.hit_points >= 2:
@@ -643,11 +656,13 @@ def first_level():
             pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1750)
             pygame.time.set_timer(BOSSATTACKEVENTTIME, 2050)
             pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 750)
+            hp_color = (100, 0, 50)
         elif darklord.hit_points <= 600 and lvl_up == 2:
             lvl_up -= 1
             pygame.time.set_timer(BOSSMOVEEVENTTYPE, 2300)
             pygame.time.set_timer(BOSSATTACKEVENTTIME, 2700)
             pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1000)
+            hp_color = (150, 0, 0)
         if need_move_boss:
             darklord.k = 6
             darklord.cur_frame = 0
@@ -714,20 +729,21 @@ def first_level():
 
                 # 2 вариант стрельбы (усложняет попадание)
                 if ((pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and
-                        (darklord.state == 'stay')):
+                        darklord.state == 'stay' and not stop):
                     b.kill()
                     balls.remove(b)
-                    darklord.hit_points -= 100
+                    darklord.hit_points -= 20
                 elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
                 for t in tentacles:
-                    if (pygame.sprite.collide_mask(b, t)) and (t.hit_points > 0):
+                    if (pygame.sprite.collide_mask(b, t)) and (t.hit_points > 0) and not stop:
                         t.hit_points -= 10
                         b.kill()
                         if b in balls:
                             balls.remove(b)
                     if t.hit_points <= 0:
+                        killed_tntcls += 1
                         t.kill()
                         tentacles.remove(t)
         # в будущем смена скорости босса в зависимости от хп
@@ -749,7 +765,7 @@ def first_level():
             for h in holes:
                 if h.k < 16:
                     h.k += 1
-        if darklord.hit_points == 0:
+        if darklord.hit_points <= 0:
             darklord.state = 'death'
             darklord.k = 6
             if darklord.cur_frame > 0:
@@ -760,6 +776,7 @@ def first_level():
                 print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
         if darklord.state == 'death':
             # для монеток
+            player_resistance = True
             if check_coins is True:
                 if not coins:
                     for i in range(3):
@@ -781,7 +798,59 @@ def first_level():
                             player.kill()
                             # в будущем занесение пройденного уровня в бд
                             # finish_level(1)
-                            game()
+                            first_lvl_victory = True
+        if first_lvl_victory:
+            fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+            screen.blit(fon, (0, 0))
+            pygame.draw.rect(screen, (187, 165, 61), (250, 150, 500, 300))
+            print_text('**************************************************', 250, 150)
+            print_text('**************************************************', 250, 440)
+            for i in range(160, 440, 10):
+                print_text('*', 250, i)
+                print_text('*', 740, i)
+            print_text('%%% Победа %%%', 325, 175)
+            if player.hit_points == 1:
+                print_text(f'У Вас осталось {player.hit_points} очко здоровья', 270, 225,
+                           (0, 0, 0), 17)
+            else:
+                print_text(f'У Вас осталось {player.hit_points} очка здоровья', 270, 225,
+                           (0, 0, 0), 17)
+            print_text(f'Вы убили {killed_tntcls} щупалец', 270, 275, (0, 0, 0), 17)
+            print_text('Ранг:', 270, 325, (0, 0, 0), 17)
+            if player.hit_points == 3 and killed_tntcls >= 20:
+                print_text('S', 325, 325, (230, 0, 0), 17)
+            elif player.hit_points == 3 and killed_tntcls >= 15:
+                print_text('A', 325, 325, (255, 79, 0), 17)
+            elif player.hit_points >= 2 and killed_tntcls >= 10:
+                print_text('B', 325, 325, (1, 50, 32), 17)
+            else:
+                print_text('C', 325, 325, (75, 83, 32), 17)
+            pygame.draw.rect(screen, (55, 67, 69), (425, 350, 125, 50))
+            print_text('>Ура<', 430, 355, (192, 192, 192))
+            if pygame.mouse.get_focused():
+                arrow = load_image('Cursor.png')
+                screen.blit(arrow, (x, y))
+        if player.hit_points <= 0:
+            stop = True
+            darklord.kill()
+            player.kill()
+            fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+            screen.blit(fon, (0, 0))
+            pygame.draw.rect(screen, (200, 25, 25), (250, 150, 500, 300))
+            print_text('**************************************************', 250, 150)
+            print_text('**************************************************', 250, 440)
+            for i in range(160, 440, 10):
+                print_text('*', 250, i)
+                print_text('*', 740, i)
+            print_text('%%% Поражение %%%', 300, 175)
+            print_text(f'У босса осталось {darklord.hit_points} очков здоровья', 270, 225,
+                       (0, 0, 0), 17)
+            print_text(f'Вы убили {killed_tntcls} щупалец', 270, 275, (0, 0, 0), 17)
+            pygame.draw.rect(screen, (0, 0, 0), (450, 350, 100, 50))
+            print_text('>ОК<', 455, 355, (255, 255, 255))
+            if pygame.mouse.get_focused():
+                arrow = load_image('Cursor.png')
+                screen.blit(arrow, (x, y))
         # Time
         pygame.display.flip()
         if player.k < 3:
