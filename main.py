@@ -908,7 +908,7 @@ def first_level():
             darklord.update()
             if darklord.cur_frame == 0:
                 darklord.kill()
-                print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
+                # print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
         if darklord.state == 'death':
             # для монеток
             player_resistance = True
@@ -969,6 +969,8 @@ def first_level():
             stop = True
             darklord.kill()
             player.kill()
+            enemy_attack_group.empty()
+            coin_group.empty()
             fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
             screen.blit(fon, (0, 0))
             pygame.draw.rect(screen, (200, 25, 25), (250, 150, 500, 300))
@@ -1249,7 +1251,8 @@ def update_balance(n):
 
 
 def finish_level(level_id):
-    """добавление пройденного уровня в бд"""
+    """добавление пройденного уровня в бд
+    для нормальной отладки пока не используем"""
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
     cur = con.cursor()
