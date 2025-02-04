@@ -531,6 +531,7 @@ def game():
     go_up = False
     go_down = False
     portal = Portal(load_image("portal.png"), 5, 1, 64, 54)  # test
+    portal2 = Portal(load_image("portal.png"), 5, 1, 448, 54)  # test
     leave = False
     while running:
         # Events
@@ -564,6 +565,7 @@ def game():
         tiles_group.draw(screen)
         portals_group.draw(screen)
         portal.update()
+        portal2.update()
         if go_up and go_right:
             player_group.draw(screen)
             player.update('u')
@@ -617,6 +619,8 @@ def game():
             player.k += 1
         if portal.k < 10:
             portal.k += 1
+        if portal2.k < 10:
+            portal2.k += 1
         clock.tick(FPS)
     pygame.quit()
 
@@ -881,9 +885,6 @@ def first_level():
                         killed_tntcls += 1
                         t.kill()
                         tentacles.remove(t)
-        # в будущем смена скорости босса в зависимости от хп
-        # if darklord.hit_points < 500:
-        #     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 1500)
         if tentacles:
             for t in tentacles:
                 if t.k < 6:
@@ -996,6 +997,133 @@ def first_level():
             darklord.k += 1
         clock.tick(FPS)
     pygame.quit()
+
+
+def second_level():
+    global player, first_lvl_victory, x, y
+    SHOOTEVENTTYPE = pygame.USEREVENT + 1
+    DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
+    PLAYERRESISTANCEEVENTTYPE = pygame.USEREVENT + 6
+    pygame.time.set_timer(DASHAVAILABLEEVENTTYPE, 1000)
+    pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
+    pygame.display.set_caption('Void Odyssey')
+    pygame.mouse.set_visible(False)
+    player.kill()
+    player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
+    hp_color = (200, 0, 0)
+    balls = []
+    go_right = False
+    go_left = False
+    shoot_time = False
+    shoot = False
+    running = True
+    dash_available = True
+    player_resistance = False
+    change_available = True
+    stop = False
+    while running:
+        # Events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEMOTION:
+                pass
+            if event.type == SHOOTEVENTTYPE and shoot:
+                shoot_time = True
+            else:
+                shoot_time = False
+            if event.type == DASHAVAILABLEEVENTTYPE:
+                dash_available = True
+            if event.type == PLAYERRESISTANCEEVENTTYPE:
+                player_resistance = False
+                change_available = True
+                pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
+            if event.type == pygame.MOUSEMOTION:
+                x, y = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                if ((450 <= x <= 550 and 350 <= y <= 400 and stop) or
+                        (425 <= x <= 550 and 350 <= y <= 400 and first_lvl_victory)):
+                    game()
+            if event.type == pygame.KEYDOWN:
+                if event.unicode == k_right:
+                    go_right = True
+                    player.look = 'right'
+                elif event.unicode == k_dash and dash_available:
+                    dash_available = False
+                    if player.look == 'right':
+                        player.move('r', 100)
+                    else:
+                        player.move('l', 100)
+                elif event.unicode == k_left:
+                    go_left = True
+                    player.look = 'left'
+                elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 300)
+                    shoot = True
+                elif event.unicode == k_jump:
+                    player.need_jump = True
+            if event.type == pygame.KEYUP:
+                if event.unicode == k_right:
+                    go_right = False
+                elif event.unicode == k_left:
+                    go_left = False
+                elif event.unicode == k_shoot:
+                    pygame.time.set_timer(SHOOTEVENTTYPE, 0)
+                    shoot = False
+        if player_resistance and change_available:
+            pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 3000)
+            change_available = False
+        # Painting
+        screen.fill((0, 0, 0))
+        fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+        screen.blit(fon, (0, 0))
+        screen.blit(load_image('heart_space.png'), (20, 20))
+        screen.blit(load_image('heart_space.png'), (80, 20))
+        screen.blit(load_image('heart_space.png'), (140, 20))
+        #  pygame.draw.rect(screen, hp_color, (200, 20, darklord.hit_points // 2, 20))
+        pygame.draw.rect(screen, (200, 200, 200), (200, 20, 500, 20), 2)
+        if player.hit_points >= 1:
+            screen.blit(load_image('heart_full.png'), (20, 20))
+            if player.hit_points >= 2:
+                screen.blit(load_image('heart_full.png'), (80, 20))
+                if player.hit_points == 3:
+                    screen.blit(load_image('heart_full.png'), (140, 20))
+        if go_right:
+            player_group.draw(screen)
+            player.update('r')
+            player.move('r')
+        elif go_left:
+            player_group.draw(screen)
+            player.update('l')
+            player.move('l')
+        else:
+            hero = load_image('hero.png')
+            screen.blit(hero, (player.x, player.y))
+        ball_group.update()
+        ball_group.draw(screen)
+
+        if shoot_time:
+            if player.look == 'right':
+                ball = Electro_Ball(load_image("electro-ball-right.png"), 3,
+                                    2, player.x, player.y, player.look)
+            else:
+                ball = Electro_Ball(load_image("electro-ball-left.png"), 3,
+                                    2, player.x, player.y, player.look)
+            balls.append(ball)
+            shoot_time = False
+        player.jump()
+        coin_group.draw(screen)
+        #  if balls:
+        #       for b in balls:
+        #           if ((pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and
+        #               darklord.state == 'stay' and not stop):
+        #               b.kill()
+        #               balls.remove(b)
+        #               darklord.hit_points -= 20
+        #           elif b.x < 0 or b.x > 900:
+        #               b.kill()
+        #               balls.remove(b)
 
 
 def start_screen():
