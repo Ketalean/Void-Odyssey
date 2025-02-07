@@ -476,6 +476,62 @@ class Hole(Tentacl):
             self.k = 0
 
 
+class Andromalius(DarkLord):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(sheet, columns, rows, x, y)
+        self.state = 'stay'
+
+    def update(self):
+        if self.k == 6:
+            if self.state == 'spawn':
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+                if self.cur_frame == 8:
+                    self.state = 'stay'
+            elif self.state == 'stay':
+                if self.cur_frame < 24:
+                    self.cur_frame = self.cur_frame + 1
+                else:
+                    self.cur_frame = 20
+            elif self.state == 'death':
+                pass
+            self.image = self.frames[self.cur_frame]
+            self.k = 0
+
+    def move(self):
+        SPEED = 10
+        if self.state == 'go_right':
+            if self.x < 700:
+                self.x += SPEED
+                self.rect.move(SPEED, 0)
+            else:
+                self.state = 'up'
+        elif self.state == 'go_left':
+            if self.x > 50:
+                self.x -= SPEED
+                self.rect.move(SPEED, 0)
+            else:
+                self.state = 'up'
+        elif self.state == 'down':
+            if self.y < 400:
+                self.y += SPEED
+                self.rect.move(0, SPEED)
+            else:
+                if self.x == 700:
+                    self.state = 'go_left'
+                else:
+                    self.state = 'go_right'
+        elif self.state == 'up':
+            if self.y > 150:
+                self.y -= SPEED
+                self.rect.move(0, -SPEED)
+            else:
+                self.state = 'stay'
+
+
+
+
+
 # основной персонаж
 player = None
 darklord = None
@@ -519,7 +575,6 @@ def terminate():
 def game():
     global player, finished_levels
     check_level()
-    # набросок первого уровня игры
     level = load_level('map.txt')
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     pygame.time.set_timer(SHOOTEVENTTYPE, 200)
@@ -1076,7 +1131,8 @@ def second_level():
             change_available = False
         # Painting
         screen.fill((0, 0, 0))
-        fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+        fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
+        print(WIDTH, HEIGHT)
         screen.blit(fon, (0, 0))
         screen.blit(load_image('heart_space.png'), (20, 20))
         screen.blit(load_image('heart_space.png'), (80, 20))
@@ -1124,6 +1180,11 @@ def second_level():
         #           elif b.x < 0 or b.x > 900:
         #               b.kill()
         #               balls.remove(b)
+        pygame.display.flip()
+        if player.k < 3:
+            player.k += 1
+        clock.tick(FPS)
+    pygame.quit()
 
 
 def start_screen():
