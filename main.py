@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import sys
-from random import randint
+from random import randint, choice
 
 import pygame
 from pygame import draw, Color
@@ -480,16 +480,13 @@ class Andromalius(DarkLord):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.state = 'stay'
+        self.speed = 10
+        self.second_move = False
 
     def update(self):
-        if self.k == 6:
-            if self.state == 'spawn':
-                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                if self.cur_frame == 8:
-                    self.state = 'stay'
-            elif self.state == 'stay':
-                if self.cur_frame < 24:
+        if self.k == 8:
+            if self.state == 'stay':
+                if self.cur_frame < 23:
                     self.cur_frame = self.cur_frame + 1
                 else:
                     self.cur_frame = 20
@@ -499,37 +496,112 @@ class Andromalius(DarkLord):
             self.k = 0
 
     def move(self):
-        SPEED = 10
         if self.state == 'go_right':
-            if self.x < 700:
-                self.x += SPEED
-                self.rect.move(SPEED, 0)
+            if self.x < 750:
+                self.x += self.speed
+                self.rect = self.rect.move(self.speed, 0)
             else:
                 self.state = 'up'
         elif self.state == 'go_left':
             if self.x > 50:
-                self.x -= SPEED
-                self.rect.move(SPEED, 0)
+                self.x -= self.speed
+                self.rect = self.rect.move(-self.speed, 0)
             else:
                 self.state = 'up'
         elif self.state == 'down':
-            if self.y < 400:
-                self.y += SPEED
-                self.rect.move(0, SPEED)
+            if self.y < 325:
+                self.y += self.speed
+                self.rect = self.rect.move(0, self.speed)
             else:
-                if self.x == 700:
+                if self.x == 750:
                     self.state = 'go_left'
                 else:
                     self.state = 'go_right'
         elif self.state == 'up':
             if self.y > 150:
-                self.y -= SPEED
-                self.rect.move(0, -SPEED)
+                self.y -= self.speed
+                self.rect = self.rect.move(0, -self.speed)
             else:
                 self.state = 'stay'
 
+    def fake_move(self):
+        if self.state == 'down':
+            if self.y < 325:
+                self.y += self.speed
+                self.rect = self.rect.move(0, self.speed)
+            else:
+                self.state = 'up'
+        elif self.state == 'up':
+            if self.y > 150:
+                self.y -= self.speed
+                self.rect = self.rect.move(0, -self.speed)
+            else:
+                self.state = 'stay'
 
+    def high_move(self):
+        if self.state == 'go_right':
+            if self.x < 750:
+                self.x += self.speed
+                self.rect = self.rect.move(self.speed, 0)
+            else:
+                self.state = 'up'
+        elif self.state == 'go_left':
+            if self.x > 50:
+                self.x -= self.speed
+                self.rect = self.rect.move(-self.speed, 0)
+            else:
+                self.state = 'up'
+        elif self.state == 'down':
+            if self.y < 200:
+                self.y += self.speed
+                self.rect = self.rect.move(0, self.speed)
+            else:
+                if self.x == 750:
+                    self.state = 'go_left'
+                else:
+                    self.state = 'go_right'
+        elif self.state == 'up':
+            if self.y > 150:
+                self.y -= self.speed
+                self.rect = self.rect.move(0, -self.speed)
+            else:
+                self.state = 'stay'
 
+    def cool_move(self):
+        if self.state == 'go_right':
+            if self.x < 750:
+                self.x += self.speed
+                self.rect = self.rect.move(self.speed, 0)
+            elif not self.second_move:
+                self.state = 'go_left'
+                self.second_move = True
+            else:
+                self.state = 'up'
+        elif self.state == 'go_left':
+            if self.x > 50:
+                self.x -= self.speed
+                self.rect = self.rect.move(-self.speed, 0)
+            elif not self.second_move:
+                self.state = 'go_right'
+                self.second_move = True
+            else:
+                self.state = 'up'
+        elif self.state == 'down':
+            if self.y < 325:
+                self.y += self.speed
+                self.rect = self.rect.move(0, self.speed)
+            else:
+                if self.x == 750:
+                    self.state = 'go_left'
+                else:
+                    self.state = 'go_right'
+        elif self.state == 'up':
+            if self.y > 150:
+                self.y -= self.speed
+                self.rect = self.rect.move(0, -self.speed)
+            else:
+                self.state = 'stay'
+                self.second_move = False
 
 
 # основной персонаж
@@ -659,7 +731,7 @@ def game():
         if pygame.sprite.collide_mask(player, portal):
             if 1 not in finished_levels:
                 if leave:
-                    first_level()
+                    second_level()
                 else:
                     print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
             else:
@@ -1057,16 +1129,22 @@ def first_level():
 def second_level():
     global player, first_lvl_victory, x, y
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
+    BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
     PLAYERRESISTANCEEVENTTYPE = pygame.USEREVENT + 6
+    pygame.time.set_timer(BOSSATTACKEVENTTIME, 4100)
     pygame.time.set_timer(DASHAVAILABLEEVENTTYPE, 1000)
     pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 0)
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
     player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
+    andromalius = Andromalius(load_image('andromalius.png'), 8, 3, 750, 100)
     hp_color = (200, 0, 0)
+    lvl_up = 2
     balls = []
+    patterns = [andromalius.move, andromalius.fake_move, andromalius.high_move, andromalius.cool_move]
+    choose = andromalius.move
     go_right = False
     go_left = False
     shoot_time = False
@@ -1075,6 +1153,7 @@ def second_level():
     dash_available = True
     player_resistance = False
     change_available = True
+    boss_attack = False
     stop = False
     while running:
         # Events
@@ -1089,6 +1168,8 @@ def second_level():
                 shoot_time = False
             if event.type == DASHAVAILABLEEVENTTYPE:
                 dash_available = True
+            if event.type == BOSSATTACKEVENTTIME and andromalius.state == 'stay':
+                boss_attack = True
             if event.type == PLAYERRESISTANCEEVENTTYPE:
                 player_resistance = False
                 change_available = True
@@ -1126,18 +1207,30 @@ def second_level():
                 elif event.unicode == k_shoot:
                     pygame.time.set_timer(SHOOTEVENTTYPE, 0)
                     shoot = False
+        if andromalius.hit_points <= 300 and lvl_up == 1:
+            lvl_up -= 1
+            pygame.time.set_timer(BOSSATTACKEVENTTIME, 3700)
+            andromalius.speed = 18
+            hp_color = (100, 0, 50)
+        elif andromalius.hit_points <= 600 and lvl_up == 2:
+            lvl_up -= 1
+            pygame.time.set_timer(BOSSATTACKEVENTTIME, 3300)
+            andromalius.speed = 14
+            hp_color = (150, 0, 0)
         if player_resistance and change_available:
             pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 3000)
             change_available = False
+        if pygame.sprite.collide_mask(andromalius, player) and not player_resistance:
+            player_resistance = True
+            player.hit_points -= 1
         # Painting
         screen.fill((0, 0, 0))
         fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
-        print(WIDTH, HEIGHT)
         screen.blit(fon, (0, 0))
         screen.blit(load_image('heart_space.png'), (20, 20))
         screen.blit(load_image('heart_space.png'), (80, 20))
         screen.blit(load_image('heart_space.png'), (140, 20))
-        #  pygame.draw.rect(screen, hp_color, (200, 20, darklord.hit_points // 2, 20))
+        pygame.draw.rect(screen, hp_color, (200, 20, andromalius.hit_points // 2, 20))
         pygame.draw.rect(screen, (200, 200, 200), (200, 20, 500, 20), 2)
         if player.hit_points >= 1:
             screen.blit(load_image('heart_full.png'), (20, 20))
@@ -1158,6 +1251,9 @@ def second_level():
             screen.blit(hero, (player.x, player.y))
         ball_group.update()
         ball_group.draw(screen)
+        enemy_group.draw(screen)
+        enemy_group.update()
+        choose()
 
         if shoot_time:
             if player.look == 'right':
@@ -1168,21 +1264,26 @@ def second_level():
                                     2, player.x, player.y, player.look)
             balls.append(ball)
             shoot_time = False
+        if boss_attack:
+            boss_attack = False
+            andromalius.state = 'down'
+            choose = choice(patterns)
         player.jump()
         coin_group.draw(screen)
-        #  if balls:
-        #       for b in balls:
-        #           if ((pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and
-        #               darklord.state == 'stay' and not stop):
-        #               b.kill()
-        #               balls.remove(b)
-        #               darklord.hit_points -= 20
-        #           elif b.x < 0 or b.x > 900:
-        #               b.kill()
-        #               balls.remove(b)
+        if balls:
+            for b in balls:
+                if (pygame.sprite.collide_mask(b, andromalius)) and (andromalius.hit_points > 0) and not stop:
+                    b.kill()
+                    balls.remove(b)
+                    andromalius.hit_points -= 20
+                elif b.x < 0 or b.x > 900:
+                    b.kill()
+                    balls.remove(b)
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
+        if andromalius.k < 8:
+            andromalius.k += 1
         clock.tick(FPS)
     pygame.quit()
 
