@@ -731,7 +731,7 @@ def game():
         if pygame.sprite.collide_mask(player, portal):
             if 1 not in finished_levels:
                 if leave:
-                    second_level()
+                    first_level()
                 else:
                     print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
             else:
