@@ -119,13 +119,14 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Portal(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
+    def __init__(self, sheet, columns, rows, x, y, id):
         super().__init__(portals_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
+        self.id = id
         self.k = 0
 
     def cut_sheet(self, sheet, columns, rows):
@@ -657,8 +658,9 @@ def game():
     go_left = False
     go_up = False
     go_down = False
-    portal = Portal(load_image("portal.png"), 5, 1, 64, 54)  # test
-    portal2 = Portal(load_image("portal.png"), 5, 1, 448, 54)  # test
+    portal = Portal(load_image("portal.png"), 5, 1, 64, 54, 1)
+    portal2 = Portal(load_image("portal.png"), 5, 1, 448, 54, 2)
+    text_coords = {1: (130, 50), 2: (530, 50)}
     leave = False
     while running:
         # Events
@@ -678,6 +680,7 @@ def game():
                     go_down = True
                 elif event.key == pygame.K_x:
                     leave = True
+                    print(leave)
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -728,14 +731,15 @@ def game():
         else:
             hero = load_image('hero.png')
             screen.blit(hero, (player.x, player.y))
-        if pygame.sprite.collide_mask(player, portal):
-            if 1 not in finished_levels:
+        if pygame.sprite.spritecollideany(player, portals_group):
+            i = pygame.sprite.spritecollideany(player, portals_group).id
+            if i not in finished_levels:
                 if leave:
-                    first_level()
+                    call_level(i)
                 else:
-                    print_text('Нажмите X', 130, 50, (0, 0, 0), 20)
+                    print_text('Нажмите X', text_coords[i][0], text_coords[i][1], (0, 0, 0), 20)
             else:
-                print_text('Уровень пройден', 130, 50, (0, 0, 0), 20)
+                print_text('Уровень пройден', text_coords[i][0], text_coords[i][1], (0, 0, 0), 20)
         else:
             leave = False
         ball_group.update()
@@ -986,14 +990,6 @@ def first_level():
         coin_group.draw(screen)
         if balls:
             for b in balls:
-                # 1 вариант стрельбы
-                # if ((b.hit(darklord.x, darklord.y, darklord.width, darklord.height) or b.x < 0 or b.x > 800)
-                #         and (darklord.hit_points > 0) and (darklord.state == 'stay')):
-                #     balls.remove(b)
-                #     print(darklord.state)
-                #     darklord.hit_points -= 50
-
-                # 2 вариант стрельбы (усложняет попадание)
                 if ((pygame.sprite.collide_mask(b, darklord)) and (darklord.hit_points > 0) and
                         darklord.state == 'stay' and not stop):
                     b.kill()
@@ -1127,7 +1123,7 @@ def first_level():
 
 
 def second_level():
-    global player, first_lvl_victory, x, y
+    global player, x, y
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
@@ -1143,6 +1139,7 @@ def second_level():
     hp_color = (200, 0, 0)
     lvl_up = 2
     balls = []
+    coins = []
     patterns = [andromalius.move, andromalius.fake_move, andromalius.high_move, andromalius.cool_move]
     choose = andromalius.move
     go_right = False
@@ -1155,6 +1152,8 @@ def second_level():
     change_available = True
     boss_attack = False
     stop = False
+    second_lvl_victory = False
+    check_coins = True
     while running:
         # Events
         for event in pygame.event.get():
@@ -1179,7 +1178,7 @@ def second_level():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
                 if ((450 <= x <= 550 and 350 <= y <= 400 and stop) or
-                        (425 <= x <= 550 and 350 <= y <= 400 and first_lvl_victory)):
+                        (425 <= x <= 550 and 350 <= y <= 400 and second_lvl_victory)):
                     game()
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
@@ -1275,10 +1274,99 @@ def second_level():
                 if (pygame.sprite.collide_mask(b, andromalius)) and (andromalius.hit_points > 0) and not stop:
                     b.kill()
                     balls.remove(b)
-                    andromalius.hit_points -= 20
+                    andromalius.hit_points -= 500
                 elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
+        if andromalius.hit_points <= 0:
+            andromalius.state = 'death'
+            andromalius.k = 8
+            if andromalius.cur_frame > 0:
+                andromalius.cur_frame -= 1
+            andromalius.update()
+            if andromalius.cur_frame == 0:
+                andromalius.kill()
+                print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
+        if andromalius.state == 'death':
+            # для монеток
+            player_resistance = True
+            if check_coins is True:
+                if not coins:
+                    for i in range(3):
+                        d = i * 45
+                        coin = Coin(load_image("coins.png"), 6, 1, andromalius.x + d, player.y)
+                        coins.append(coin)
+                for c in coins:
+                    c.update()
+                    if c.k < 10:
+                        c.k += 1
+                    if pygame.sprite.collide_mask(player, c):
+                        c.kill()
+                        coins.remove(c)
+                        if not coins:
+                            check_coins = False
+                            new_balance = get_balance() + 3
+                            # в будущем обновление баланса игрока
+                            # update_balance(new_balance)
+                            player.kill()
+                            # в будущем занесение пройденного уровня в бд
+                            # finish_level(1)
+                            second_lvl_victory = True
+        if second_lvl_victory:
+            fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
+            screen.blit(fon, (0, 0))
+            pygame.draw.rect(screen, (187, 165, 61), (250, 150, 500, 300))
+            print_text('**************************************************', 250, 150)
+            print_text('**************************************************', 250, 440)
+            for i in range(160, 440, 10):
+                print_text('*', 250, i)
+                print_text('*', 740, i)
+            print_text('%%% Победа %%%', 325, 175)
+            if player.hit_points == 1:
+                print_text(f'У Вас осталось {player.hit_points} очко здоровья', 270, 225,
+                           (0, 0, 0), 17)
+            else:
+                print_text(f'У Вас осталось {player.hit_points} очка здоровья', 270, 225,
+                           (0, 0, 0), 17)
+            print_text(f'Вы увернулись от всех атак Андромалиуса!', 270, 275, (0, 0, 0), 17)
+            print_text('Ранг:', 270, 325, (0, 0, 0), 17)
+            if player.hit_points == 3:
+                print_text('S', 325, 325, (230, 0, 0), 17)
+            elif player.hit_points == 3:
+                # print_text('A', 325, 325, (255, 79, 0), 17)
+                pass
+            elif player.hit_points >= 2:
+                print_text('B', 325, 325, (1, 50, 32), 17)
+            else:
+                print_text('C', 325, 325, (75, 83, 32), 17)
+            pygame.draw.rect(screen, (55, 67, 69), (425, 350, 125, 50))
+            print_text('>Ура<', 430, 355, (192, 192, 192))
+            if pygame.mouse.get_focused():
+                arrow = load_image('Cursor.png')
+                screen.blit(arrow, (x, y))
+        if player.hit_points <= 0:
+            stop = True
+            andromalius.kill()
+            player.kill()
+            enemy_attack_group.empty()
+            coin_group.empty()
+            fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+            screen.blit(fon, (0, 0))
+            pygame.draw.rect(screen, (200, 25, 25), (250, 150, 500, 300))
+            print_text('**************************************************', 250, 150)
+            print_text('**************************************************', 250, 440)
+            for i in range(160, 440, 10):
+                print_text('*', 250, i)
+                print_text('*', 740, i)
+            print_text('%%% Поражение %%%', 300, 175)
+            print_text(f'У босса осталось {andromalius.hit_points} очков здоровья', 270, 225,
+                       (0, 0, 0), 17)
+            # print_text(f'Вы убили 0 щупалец', 270, 275, (0, 0, 0), 17)
+            pygame.draw.rect(screen, (0, 0, 0), (450, 350, 100, 50))
+            print_text('>ОК<', 455, 355, (255, 255, 255))
+            if pygame.mouse.get_focused():
+                arrow = load_image('Cursor.png')
+                screen.blit(arrow, (x, y))
         pygame.display.flip()
         if player.k < 3:
             player.k += 1
@@ -1564,6 +1652,12 @@ def check_level():
     con.close()
     for el in levels:
         finished_levels.append(el[0])
+
+def call_level(i):
+    if i == 1:
+        first_level()
+    else:
+        second_level()
 
 
 start_screen()
