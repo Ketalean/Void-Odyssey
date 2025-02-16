@@ -104,7 +104,9 @@ player_image = load_image('hero.png')
 
 tile_images = {
     'wall': load_image('stones.png'),
-    'empty': load_image('grass.png')
+    'empty': load_image('grass.png'),
+    'ground2': load_image('ground.png'),
+    'dirt': load_image('dirt.png')
 }
 
 tile_width = tile_height = 64
@@ -510,7 +512,7 @@ class Andromalius(DarkLord):
             else:
                 self.state = 'up'
         elif self.state == 'down':
-            if self.y < 325:
+            if self.y < 365:
                 self.y += self.speed
                 self.rect = self.rect.move(0, self.speed)
             else:
@@ -519,7 +521,7 @@ class Andromalius(DarkLord):
                 else:
                     self.state = 'go_right'
         elif self.state == 'up':
-            if self.y > 150:
+            if self.y > 190:
                 self.y -= self.speed
                 self.rect = self.rect.move(0, -self.speed)
             else:
@@ -527,13 +529,13 @@ class Andromalius(DarkLord):
 
     def fake_move(self):
         if self.state == 'down':
-            if self.y < 325:
+            if self.y < 365:
                 self.y += self.speed
                 self.rect = self.rect.move(0, self.speed)
             else:
                 self.state = 'up'
         elif self.state == 'up':
-            if self.y > 150:
+            if self.y > 190:
                 self.y -= self.speed
                 self.rect = self.rect.move(0, -self.speed)
             else:
@@ -553,7 +555,7 @@ class Andromalius(DarkLord):
             else:
                 self.state = 'up'
         elif self.state == 'down':
-            if self.y < 200:
+            if self.y < 240:
                 self.y += self.speed
                 self.rect = self.rect.move(0, self.speed)
             else:
@@ -562,7 +564,7 @@ class Andromalius(DarkLord):
                 else:
                     self.state = 'go_right'
         elif self.state == 'up':
-            if self.y > 150:
+            if self.y > 190:
                 self.y -= self.speed
                 self.rect = self.rect.move(0, -self.speed)
             else:
@@ -588,7 +590,7 @@ class Andromalius(DarkLord):
             else:
                 self.state = 'up'
         elif self.state == 'down':
-            if self.y < 325:
+            if self.y < 365:
                 self.y += self.speed
                 self.rect = self.rect.move(0, self.speed)
             else:
@@ -597,7 +599,7 @@ class Andromalius(DarkLord):
                 else:
                     self.state = 'go_right'
         elif self.state == 'up':
-            if self.y > 150:
+            if self.y > 190:
                 self.y -= self.speed
                 self.rect = self.rect.move(0, -self.speed)
             else:
@@ -628,13 +630,14 @@ def generate_level(level):
                 Tile('empty', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
+            elif level[y][x] == '$':
+                Tile('ground2', x, y)
+            elif level[y][x] == '*':
+                Tile('dirt', x, y)
             elif level[y][x] == '@':
-                Tile('empty', x, y)
+                pass
     # вернем игрока, а также размер поля в клетках
     return x, y
-
-
-level_x, level_y = generate_level(load_level('map.txt'))
 
 
 def terminate():
@@ -648,7 +651,9 @@ def terminate():
 def game():
     global player, finished_levels
     check_level()
+    level_x, level_y = generate_level(load_level('map.txt'))
     level = load_level('map.txt')
+    # finished_levels.append(1)
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     pygame.time.set_timer(SHOOTEVENTTYPE, 200)
     player = Player(load_image("hero-move.png"), 3, 4, 385, 550)
@@ -680,7 +685,6 @@ def game():
                     go_down = True
                 elif event.key == pygame.K_x:
                     leave = True
-                    print(leave)
             if event.type == pygame.KEYUP:
                 if event.unicode == k_right:
                     go_right = False
@@ -734,8 +738,10 @@ def game():
         if pygame.sprite.spritecollideany(player, portals_group):
             i = pygame.sprite.spritecollideany(player, portals_group).id
             if i not in finished_levels:
-                if leave:
+                if leave and (i == 1 or (i == 2 and 1 in finished_levels)):
                     call_level(i)
+                elif i == 2 and 1 not in finished_levels:
+                    print_text('Недоступно', text_coords[i][0], text_coords[i][1], (0, 0, 0), 20)
                 else:
                     print_text('Нажмите X', text_coords[i][0], text_coords[i][1], (0, 0, 0), 20)
             else:
@@ -1124,6 +1130,9 @@ def first_level():
 
 def second_level():
     global player, x, y
+    tiles_group.empty()
+    level_x, level_y = generate_level(load_level('map_lvl2.txt'))
+    level = load_level('map_lvl2.txt')
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
@@ -1134,8 +1143,8 @@ def second_level():
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
     player.kill()
-    player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 400)
-    andromalius = Andromalius(load_image('andromalius.png'), 8, 3, 750, 100)
+    player = RealPlayer(load_image("hero-move.png"), 3, 4, 100, 440)
+    andromalius = Andromalius(load_image('andromalius.png'), 8, 3, 750, 140)
     hp_color = (200, 0, 0)
     lvl_up = 2
     balls = []
@@ -1219,13 +1228,14 @@ def second_level():
         if player_resistance and change_available:
             pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 3000)
             change_available = False
-        if pygame.sprite.collide_mask(andromalius, player) and not player_resistance:
+        if pygame.sprite.collide_mask(andromalius, player) and not player_resistance and not andromalius.state == 'death':
             player_resistance = True
             player.hit_points -= 1
         # Painting
         screen.fill((0, 0, 0))
         fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
+        tiles_group.draw(screen)
         screen.blit(load_image('heart_space.png'), (20, 20))
         screen.blit(load_image('heart_space.png'), (80, 20))
         screen.blit(load_image('heart_space.png'), (140, 20))
@@ -1274,7 +1284,7 @@ def second_level():
                 if (pygame.sprite.collide_mask(b, andromalius)) and (andromalius.hit_points > 0) and not stop:
                     b.kill()
                     balls.remove(b)
-                    andromalius.hit_points -= 500
+                    andromalius.hit_points -= 20
                 elif b.x < 0 or b.x > 900:
                     b.kill()
                     balls.remove(b)
@@ -1294,7 +1304,7 @@ def second_level():
                 if not coins:
                     for i in range(3):
                         d = i * 45
-                        coin = Coin(load_image("coins.png"), 6, 1, andromalius.x + d, player.y)
+                        coin = Coin(load_image("coins.png"), 6, 1, andromalius.x + d, 440)
                         coins.append(coin)
                 for c in coins:
                     c.update()
@@ -1350,7 +1360,7 @@ def second_level():
             player.kill()
             enemy_attack_group.empty()
             coin_group.empty()
-            fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
+            fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
             screen.blit(fon, (0, 0))
             pygame.draw.rect(screen, (200, 25, 25), (250, 150, 500, 300))
             print_text('**************************************************', 250, 150)
@@ -1361,7 +1371,7 @@ def second_level():
             print_text('%%% Поражение %%%', 300, 175)
             print_text(f'У босса осталось {andromalius.hit_points} очков здоровья', 270, 225,
                        (0, 0, 0), 17)
-            # print_text(f'Вы убили 0 щупалец', 270, 275, (0, 0, 0), 17)
+            print_text('Андромалиус следит.', 270, 275, (0, 0, 0), 17)
             pygame.draw.rect(screen, (0, 0, 0), (450, 350, 100, 50))
             print_text('>ОК<', 455, 355, (255, 255, 255))
             if pygame.mouse.get_focused():
@@ -1652,6 +1662,7 @@ def check_level():
     con.close()
     for el in levels:
         finished_levels.append(el[0])
+
 
 def call_level(i):
     if i == 1:
