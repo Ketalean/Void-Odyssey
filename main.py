@@ -23,7 +23,6 @@ k_down = 's'
 k_shoot = 'l'
 k_jump = ' '
 k_dash = 'p'
-first_lvl_victory = False
 
 
 def load_image(name, colorkey=None):
@@ -51,6 +50,12 @@ def load_image(name, colorkey=None):
 
 
 def load_level(filename):
+    """
+    Функция загружает лвл по карте файла.
+    Возвращает список с картой уровня
+    :param filename: str имя файла карты
+    :return: список с элементами карты
+    """
     filename = "data/" + filename
     # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
@@ -67,6 +72,7 @@ class Electro_Ball(pygame.sprite.Sprite):
     """
     Класс снаряда игрока.
     """
+
     # набросок снаряда
     def __init__(self, sheet, columns, rows, x, y, direction):
         super().__init__(ball_group)
@@ -214,6 +220,7 @@ class Player(pygame.sprite.Sprite):
     """
     Класс игрока, который передвигается по основному миру (где выбирается уровень).
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(player_group)
         self.pos = [x, y]
@@ -322,6 +329,7 @@ class RealPlayer(Player):
     """
     Класс игрока, который непосредственно сражается в уровнях.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.look = 'right'
@@ -371,6 +379,7 @@ class DarkLord(pygame.sprite.Sprite):
     """
     Класс босса первого уровня, Тёмного Лорда.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_group)
         self.hit_points = 1000
@@ -444,6 +453,7 @@ class Tentacl(pygame.sprite.Sprite):
     """
     Класс щупальца, которым атакует Тёмный Лорд.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_attack_group)
         self.hit_points = 40
@@ -503,6 +513,7 @@ class Flame_Ball(pygame.sprite.Sprite):
     """
     Класс огненного снаряда, которым атакует Тёмный Лорд.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_attack_group)
         self.pos = [x, y]
@@ -588,6 +599,7 @@ class Hole(Tentacl):
     """
     Класс дыры, которая свидетельствует о скором появлении щупальца Тёмного Лорда.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
 
@@ -612,6 +624,7 @@ class Andromalius(DarkLord):
     """
     Класс босса второго уровня, Андромалиуса.
     """
+
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.state = 'stay'
@@ -778,6 +791,12 @@ coin_group = pygame.sprite.Group()
 
 
 def generate_level(level):
+    """
+    Функция загружает списку с элементами карты.
+    Возвращает x и y уровня
+    :param level: list список элементов карты
+    :return x, y: x, y уровня
+    """
     new_player, x, y = None, None, None
     for y in range(len(level)):
         for x in range(len(level[y])):
@@ -806,13 +825,16 @@ def terminate():
 def game():
     """
     Функция отвечает за основной мир, где игрок выбирает уровень.
+    Глобальные переменные:
+    player - для правильной работы с созданным спрайтом, удалить предыдущий объект, создать новый
+    finished_levels - для чтения списка пройденных уровней
+    x, y - для курсора при финальном окне
     :return: Nothing
     """
-    global player, finished_levels
+    global player, finished_levels, x, y
     check_level()
     level_x, level_y = generate_level(load_level('map.txt'))
     level = load_level('map.txt')
-    # finished_levels.append(1)
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     pygame.time.set_timer(SHOOTEVENTTYPE, 200)
     player = Player(load_image("hero-move.png"), 3, 4, 385, 550)
@@ -824,7 +846,7 @@ def game():
     go_down = False
     portal = Portal(load_image("portal.png"), 5, 1, 64, 54, 1)
     portal2 = Portal(load_image("portal.png"), 5, 1, 448, 54, 2)
-    text_coords = {1: (130, 50), 2: (530, 50)}
+    text_coords = {1: (140, 50), 2: (530, 50)}
     leave = False
     while running:
         # Events
@@ -832,7 +854,13 @@ def game():
             if event.type == pygame.QUIT:
                 terminate()
             if event.type == pygame.MOUSEMOTION:
-                pass
+                x, y = event.pos
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                if (419 <= x <= 530 and 365 <= y <= 410) and len(finished_levels) == 2:  # 425, 365, 125, 50
+                    restart()
+                    player.kill()
+                    game()
             if event.type == pygame.KEYDOWN:
                 if event.unicode == k_right:
                     go_right = True
@@ -909,6 +937,21 @@ def game():
             leave = False
         ball_group.update()
         ball_group.draw(screen)
+        if len(finished_levels) == 2:
+            pygame.draw.rect(screen, (187, 165, 61), (250, 150, 500, 300))
+            print_text('**************************************************', 250, 150)
+            print_text('**************************************************', 250, 440)
+            for i in range(160, 440, 10):
+                print_text('*', 250, i)
+                print_text('*', 740, i)
+            print_text('%%% Поздравляем! %%%', 300, 175)
+            print_text(f'Вы прошли игру!', 270, 275, (0, 0, 0), 17)
+            print_text('Чтобы пройти игру заново нажмите ДА', 270, 325, (0, 0, 0), 17)
+            pygame.draw.rect(screen, (55, 67, 69), (425, 365, 125, 50))
+            print_text('>ДА<', 440, 372, (192, 192, 192))
+            if pygame.mouse.get_focused():
+                arrow = load_image('Cursor.png')
+                screen.blit(arrow, (x, y))
         # Time
         pygame.display.flip()
         if player.k < 3:
@@ -924,9 +967,13 @@ def game():
 def first_level():
     """
     Функция отвечает за первый уровень.
+    Глобальные переменные:
+    player - для правильной работы с созданным спрайтом, удалить предыдущий объект, создать новый
+    x, y - также для курсора, + здесь чтобы pycharm не ругался
     :return: Nothing
     """
-    global player, first_lvl_victory, x, y
+    global player, x, y
+    # далее прописаны события игрока и босса, названия говорят какое событие описано
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
@@ -934,6 +981,7 @@ def first_level():
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
     PLAYERRESISTANCEEVENTTYPE = pygame.USEREVENT + 6
     BOSSBALLATTACKEVENTTIME = pygame.USEREVENT + 7
+    # установка кд, таймеров для кастомных событий
     pygame.time.set_timer(BOSSMOVEEVENTTYPE, 3500)
     pygame.time.set_timer(BOSSATTACKEVENTTIME, 4100)
     pygame.time.set_timer(SPAWNHOLESEVENTTYPE, 1500)
@@ -947,17 +995,20 @@ def first_level():
     darklord = DarkLord(load_image("shadow3.png"), 4, 5, 600, 340)
     hp_color = (200, 0, 0)
     killed_tntcls = 0
+    # списки для спрайтов
     balls = []
     boss_balls = []
     coins = []
     holes = []
     tentacles = []
+    # булевые переменные, из названий понятно, назначение некоторых поясню
+    running = True
+    first_lvl_victory = False
     go_right = False
     go_left = False
     shoot_time = False
     shoot = False
-    running = True
-    check_coins = True
+    check_coins = True  # для корректного создания монет при победе над боссом
     need_move_boss = False
     hole_spawn = False
     boss_attack = False
@@ -966,7 +1017,7 @@ def first_level():
     player_resistance = False
     change_available = True
     right_pos = False
-    stop = False
+    stop = False  # остановка уровня при победе и поражении
     target_x = 0
     target_y = 0
     lvl_up = 2
@@ -1074,7 +1125,8 @@ def first_level():
             hole_spawn = False
         if boss_ball_attack and darklord.state != 'death' and len(boss_balls) <= 4:
             for i in range(4):
-                boss_ball = Flame_Ball(load_image('flameball.png'), 4, 1, darklord.x + 50, darklord.y + 50)
+                boss_ball = Flame_Ball(load_image('flameball.png'), 4, 1,
+                                       darklord.x + 50, darklord.y + 50)
                 boss_balls.append(boss_ball)
             boss_ball_attack = False
         if boss_balls:
@@ -1128,6 +1180,10 @@ def first_level():
                 t.kill()
                 if t in tentacles:
                     tentacles.remove(t)
+            for b in boss_balls:
+                b.kill()
+                if b in boss_balls:
+                    boss_balls.remove(b)
         enemy_group.draw(screen)
         enemy_attack_group.update()
         enemy_attack_group.draw(screen)
@@ -1201,6 +1257,7 @@ def first_level():
             darklord.update()
             if darklord.cur_frame == 0:
                 darklord.kill()
+                tentacles = []
                 # print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
         if darklord.state == 'death':
             # для монеток
@@ -1221,11 +1278,9 @@ def first_level():
                         if not coins:
                             check_coins = False
                             new_balance = get_balance() + 3
-                            # в будущем обновление баланса игрока
-                            # update_balance(new_balance)
+                            update_balance(new_balance)
                             player.kill()
-                            # в будущем занесение пройденного уровня в бд
-                            # finish_level(1)
+                            finish_level(1)
                             first_lvl_victory = True
         if first_lvl_victory:
             fon = pygame.transform.scale(load_image('castleinthedark.gif'), (WIDTH, HEIGHT))
@@ -1294,12 +1349,17 @@ def first_level():
 def second_level():
     """
     Функция отвечает за второй уровень.
+    Глобальные переменные:
+    player - для правильной работы с созданным спрайтом, удалить предыдущий объект, создать новый
+    x, y - также для курсора, + здесь чтобы pycharm не ругался
     :return: Nothing
     """
     global player, x, y
     tiles_group.empty()
+    # здесь снова использована отрисовка уровня, конкретно земля
     level_x, level_y = generate_level(load_level('map_lvl2.txt'))
     level = load_level('map_lvl2.txt')
+    # кастомные ивенты также как в первом лвле
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSATTACKEVENTTIME = pygame.USEREVENT + 3
     DASHAVAILABLEEVENTTYPE = pygame.USEREVENT + 5
@@ -1314,10 +1374,14 @@ def second_level():
     andromalius = Andromalius(load_image('andromalius.png'), 8, 3, 750, 140)
     hp_color = (200, 0, 0)
     lvl_up = 2
+    # списки для спрайтов
     balls = []
     coins = []
+    # список с паттернами для атак андромалиуса
     patterns = [andromalius.move, andromalius.fake_move, andromalius.high_move, andromalius.cool_move]
     choose = andromalius.move
+    rnd_rank = choice(['S', 'A'])  # о великий рандом
+    # булевые переменые
     go_right = False
     go_left = False
     shoot_time = False
@@ -1329,7 +1393,7 @@ def second_level():
     boss_attack = False
     stop = False
     second_lvl_victory = False
-    check_coins = True
+    check_coins = True  # для корректного создания монеток
     while running:
         # Events
         for event in pygame.event.get():
@@ -1395,7 +1459,8 @@ def second_level():
         if player_resistance and change_available:
             pygame.time.set_timer(PLAYERRESISTANCEEVENTTYPE, 3000)
             change_available = False
-        if pygame.sprite.collide_mask(andromalius, player) and not player_resistance and not andromalius.state == 'death':
+        if pygame.sprite.collide_mask(andromalius,
+                                      player) and not player_resistance and not andromalius.state == 'death':
             player_resistance = True
             player.hit_points -= 1
         # Painting
@@ -1463,7 +1528,7 @@ def second_level():
             andromalius.update()
             if andromalius.cur_frame == 0:
                 andromalius.kill()
-                print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
+                # print_text('Победа', WIDTH // 2 - 100, HEIGHT - 630, (255, 255, 255))
         if andromalius.state == 'death':
             # для монеток
             player_resistance = True
@@ -1483,11 +1548,9 @@ def second_level():
                         if not coins:
                             check_coins = False
                             new_balance = get_balance() + 3
-                            # в будущем обновление баланса игрока
-                            # update_balance(new_balance)
+                            update_balance(new_balance)
                             player.kill()
-                            # в будущем занесение пройденного уровня в бд
-                            # finish_level(1)
+                            finish_level(2)
                             second_lvl_victory = True
         if second_lvl_victory:
             fon = pygame.transform.scale(load_image('boloto.png'), (WIDTH, HEIGHT))
@@ -1508,11 +1571,8 @@ def second_level():
             print_text(f'Вы увернулись от всех атак Андромалиуса!', 270, 275, (0, 0, 0), 17)
             print_text('Ранг:', 270, 325, (0, 0, 0), 17)
             if player.hit_points == 3:
-                print_text('S', 325, 325, (230, 0, 0), 17)
-            elif player.hit_points == 3:
-                # print_text('A', 325, 325, (255, 79, 0), 17)
-                pass
-            elif player.hit_points >= 2:
+                print_text(f'{rnd_rank}', 325, 325, (230, 0, 0), 17)
+            elif player.hit_points == 2:
                 print_text('B', 325, 325, (1, 50, 32), 17)
             else:
                 print_text('C', 325, 325, (75, 83, 32), 17)
@@ -1556,6 +1616,8 @@ def second_level():
 def start_screen():
     """
     Функция отвечает за начальное окно.
+    Глобальные переменные:
+    x, y - для расположения курсора в том же месте что и при выходе из настроек/для передачи в окно настроек
     :return: Nothing
     """
     global x, y
@@ -1600,13 +1662,17 @@ def start_screen():
 def settings_screen():
     """
     Функция отвечает за окно настроек и сохранение выбранных пользователем настроек.
+    Глобальные переменные:
+    x, y - для расположения курсора в том же месте что и в меню
+    k_right, k_left, k_up, k_down, k_shoot, k_jump, k_dash - запоминание клавиш выбранных пользователем для
+    использования в самой игре
     :return: Nothing
     """
     global x, y, k_right, k_left, k_up, k_down, k_shoot, k_jump, k_dash
     error = False
     pygame.display.set_caption('Settings')
     color_right = (0, 0, 0)  # цвет надписи, отвечающий за кнопку "вправо". Далее по аналогии
-    inp_right = False  # означает, надо ли изменять кнопку "вправо"
+    inp_right = False  # означает, надо ли изменять кнопку "вправо". Далее по аналогии
     color_left = (0, 0, 0)
     inp_left = False
     color_up = (0, 0, 0)
@@ -1792,7 +1858,8 @@ def print_text(message, x, y, color=(0, 0, 0), font_size=30, font_type='DreiFrak
 
 def get_balance():
     """
-    Получить баланс игрока.
+    Функция для получения баланса игрока.
+    :return: n монет на балансе игрока
     """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
@@ -1805,7 +1872,11 @@ def get_balance():
 
 def update_balance(n):
     """
-    Обновить баланс игрока на n монет.
+    Функция чтобы обновить баланс игрока в БД
+    добавить n монет (в основном 3)
+    !изменение БД!
+    :param n: int кол-во монет
+    :return: Nothing
     """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
@@ -1819,8 +1890,10 @@ def update_balance(n):
 
 def finish_level(level_id):
     """
-    Добавление пройденного уровня в бд
-    для нормальной отладки, пока не используем.
+    Функция для обавление пройденного уровня по level_id в БД
+    !изменение БД!
+    :param level_id: int айди лвла
+    :return: Nothing
     """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
@@ -1834,6 +1907,10 @@ def finish_level(level_id):
 def check_level():
     """
     Получение списка пройденных уровней игрока.
+    !чтение из БД!
+    Изменение глобального списка finished_levels
+    no params
+    :return: Nothing
     """
     global finished_levels
     finished_levels = []
@@ -1848,10 +1925,31 @@ def check_level():
 
 
 def call_level(i):
+    """
+    Функция, чтобы запустить уровень.
+    Вызов функции уровня
+    :param i: int, айди уровня
+    :return: Nothing
+    """
     if i == 1:
         first_level()
     else:
         second_level()
+
+
+def restart():
+    """
+    Сбросить все данные о прохождении игры. Начать заново.
+    !Изменение БД!
+    :return: Nothing
+    """
+    update_balance(0)
+    filename = os.path.join('data', 'localgamedb.sql')
+    con = sqlite3.connect(filename)
+    cur = con.cursor()
+    cur.execute('''DELETE from levels''')
+    con.commit()
+    con.close()
 
 
 start_screen()
