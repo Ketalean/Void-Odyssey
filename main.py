@@ -27,6 +27,13 @@ first_lvl_victory = False
 
 
 def load_image(name, colorkey=None):
+    """
+    Функция загружает изображение по имени файла, в котором оно хранится.
+    Возвращает готовое для использования в классах изображение.
+    :param name: str имя файла (формат png, jpg и т. п.)
+    :param colorkey: если указан -1, убирает фон
+    :return: image
+    """
     fullname = os.path.join('data', name)
     # если файл не существует, то выходим
     if not os.path.isfile(fullname):
@@ -57,6 +64,9 @@ def load_level(filename):
 
 
 class Electro_Ball(pygame.sprite.Sprite):
+    """
+    Класс снаряда игрока.
+    """
     # набросок снаряда
     def __init__(self, sheet, columns, rows, x, y, direction):
         super().__init__(ball_group)
@@ -70,13 +80,14 @@ class Electro_Ball(pygame.sprite.Sprite):
         self.y = y
         self.direction = direction
 
-    def hit(self, enemy_x, enemy_y, width, height):
-        if self.rect.colliderect((enemy_x, enemy_y, width, height)):
-            self.kill()
-            return True
-        return False
-
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -86,6 +97,10 @@ class Electro_Ball(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Функция отвечает за анимацию и перемещение снаряда
+        :return: Nothing
+        """
         screen_rect = (0, 0, WIDTH, HEIGHT)
         self.cur_frame = (self.cur_frame + 1) % 6
         self.image = self.frames[self.cur_frame]
@@ -132,6 +147,13 @@ class Portal(pygame.sprite.Sprite):
         self.k = 0
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -141,6 +163,10 @@ class Portal(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Анимация портала.
+        :return: Nothing
+        """
         if self.k == 10:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
@@ -158,6 +184,13 @@ class Coin(pygame.sprite.Sprite):
         self.k = 0
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -167,6 +200,10 @@ class Coin(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Анимация монетки.
+        :return: Nothing
+        """
         if self.k == 10:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
@@ -174,7 +211,9 @@ class Coin(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    # набросок класса игрока с анимацией
+    """
+    Класс игрока, который передвигается по основному миру (где выбирается уровень).
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(player_group)
         self.pos = [x, y]
@@ -188,6 +227,13 @@ class Player(pygame.sprite.Sprite):
         self.y = y
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -197,6 +243,11 @@ class Player(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self, direction):
+        """
+        Анимация персонажа, в зависимости от направления движения изменяется.
+        :param direction: str направление движения персонажа
+        :return: Nothing
+        """
         if self.k == 3:
             if direction == 'u':
                 self.cur_frame = (self.cur_frame + 1) % 3
@@ -219,7 +270,11 @@ class Player(pygame.sprite.Sprite):
             self.k = 0
 
     def move(self, direction):
-        #  direction отвечает за направление движения
+        """
+        Перемещение персонажа по карте.
+        :param direction: str направление движения персонажа
+        :return: Nothing
+        """
         SPEED = 5
         if direction == 'r':
             if self.x < WIDTH:
@@ -264,6 +319,9 @@ class Player(pygame.sprite.Sprite):
 
 
 class RealPlayer(Player):
+    """
+    Класс игрока, который непосредственно сражается в уровнях.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.look = 'right'
@@ -276,6 +334,10 @@ class RealPlayer(Player):
         self.hit_points = 3
 
     def jump(self):
+        """
+        Функция отвечает за прыжок персонажа.
+        :return: Nothing
+        """
         if self.need_jump:
             if self.v0:
                 self.y = self.y0 - self.v0 * self.t + self.G * self.t ** 2 / 2
@@ -289,6 +351,12 @@ class RealPlayer(Player):
             self.rect.y = self.y
 
     def move(self, direction, speed=7):
+        """
+        Перемещение персонажа во время битв.
+        :param direction: str направление движения
+        :param speed: int скорость перемещения
+        :return: Nothing
+        """
         if direction == 'r':
             if self.x < WIDTH - 60:
                 self.x += speed
@@ -300,6 +368,9 @@ class RealPlayer(Player):
 
 
 class DarkLord(pygame.sprite.Sprite):
+    """
+    Класс босса первого уровня, Тёмного Лорда.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_group)
         self.hit_points = 1000
@@ -317,6 +388,13 @@ class DarkLord(pygame.sprite.Sprite):
         self.state = 'spawn'
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -326,6 +404,11 @@ class DarkLord(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Функция отвечает за анимацию Лорда, в зависимости от его состояния (появляется или стоит)
+        изменяется анимация.
+        :return: Nothing
+        """
         if self.k == 6:
             if self.state == 'spawn':
                 self.cur_frame = (self.cur_frame + 1) % len(self.frames)
@@ -343,6 +426,10 @@ class DarkLord(pygame.sprite.Sprite):
             self.k = 0
 
     def move(self):
+        """
+        Функция отвечает за случайное перемещение босса по локации, где происходит сражение.
+        :return: Nothing
+        """
         self.state = 'spawn'
         old_x = self.x
         self.x = randint(50, 650)
@@ -354,6 +441,9 @@ class DarkLord(pygame.sprite.Sprite):
 
 
 class Tentacl(pygame.sprite.Sprite):
+    """
+    Класс щупальца, которым атакует Тёмный Лорд.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_attack_group)
         self.hit_points = 40
@@ -371,6 +461,13 @@ class Tentacl(pygame.sprite.Sprite):
         self.state = 'spawn'
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -380,6 +477,11 @@ class Tentacl(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Функция отвечает за анимацию щупальца, в зависимости от его состояния (спавнится или стоит)
+        изменяется анимация.
+        :return: Nothing
+        """
         if self.k == 6:
             if self.state == 'spawn':
                 self.cur_frame = (self.cur_frame + 1) % len(self.frames)
@@ -398,6 +500,9 @@ class Tentacl(pygame.sprite.Sprite):
 
 
 class Flame_Ball(pygame.sprite.Sprite):
+    """
+    Класс огненного снаряда, которым атакует Тёмный Лорд.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(enemy_attack_group)
         self.pos = [x, y]
@@ -413,6 +518,13 @@ class Flame_Ball(pygame.sprite.Sprite):
         self.k = 0
 
     def cut_sheet(self, sheet, columns, rows):
+        """
+        Разрезает полученное изображение на равные части.
+        :param sheet: str имя файла, хранящее изображение
+        :param columns: int кол-во колонок, на которое нужно разбить изображение
+        :param rows: int кол-во рядов, на которое нужно разбить изображение
+        :return: Nothing
+        """
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
@@ -422,6 +534,10 @@ class Flame_Ball(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        """
+        Анимация снаряда.
+        :return: Nothing
+        """
         if self.k == 6:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
@@ -429,6 +545,12 @@ class Flame_Ball(pygame.sprite.Sprite):
             self.k = 0
 
     def spawn(self, x, y):
+        """
+        Функция отвечает за появление и перемещение снаряда.
+        :param x: int координата x, к которой движется снаряд
+        :param y: int координата y, к которой движется снаряд
+        :return: Nothing
+        """
         pos = (x, y)
         SPEED = 1
         if self.x == x and self.y == y:
@@ -463,10 +585,17 @@ class Flame_Ball(pygame.sprite.Sprite):
 
 
 class Hole(Tentacl):
+    """
+    Класс дыры, которая свидетельствует о скором появлении щупальца Тёмного Лорда.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
 
     def update(self):
+        """
+        Функция отвечает за анимацию дыры, в зависимости от состояния (появление или пребывание) анимация различна
+        :return: Nothing
+        """
         if self.k == 16:
             if self.state == 'spawn':
                 self.cur_frame = (self.cur_frame + 1) % len(self.frames)
@@ -480,6 +609,9 @@ class Hole(Tentacl):
 
 
 class Andromalius(DarkLord):
+    """
+    Класс босса второго уровня, Андромалиуса.
+    """
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(sheet, columns, rows, x, y)
         self.state = 'stay'
@@ -487,6 +619,10 @@ class Andromalius(DarkLord):
         self.second_move = False
 
     def update(self):
+        """
+        Функция отвечает за анимацию Андромалиуса.
+        :return: Nothing
+        """
         if self.k == 8:
             if self.state == 'stay':
                 if self.cur_frame < 23:
@@ -499,6 +635,11 @@ class Andromalius(DarkLord):
             self.k = 0
 
     def move(self):
+        """
+        Функция отвечает за перемещение Андромалиуса от одного края арены до противоположного
+        (босс опускается вниз, проносится и поднимается наверх).
+        :return: Nothing
+        """
         if self.state == 'go_right':
             if self.x < 750:
                 self.x += self.speed
@@ -528,6 +669,10 @@ class Andromalius(DarkLord):
                 self.state = 'stay'
 
     def fake_move(self):
+        """
+        Функция отвечает за фальшивое перемещение Андромалиуса (босс опускается вниз и сразу поднимается вверх).
+        :return: Nothing
+        """
         if self.state == 'down':
             if self.y < 365:
                 self.y += self.speed
@@ -542,6 +687,11 @@ class Andromalius(DarkLord):
                 self.state = 'stay'
 
     def high_move(self):
+        """
+        Функция отвечает за перемещение Андромалиуса, при котором он почти не изменяет высоту полёта
+        (проносится сверху над игроком).
+        :return: Nothing
+        """
         if self.state == 'go_right':
             if self.x < 750:
                 self.x += self.speed
@@ -571,6 +721,11 @@ class Andromalius(DarkLord):
                 self.state = 'stay'
 
     def cool_move(self):
+        """
+        Функция отвечает за коронную атаку Андромалиуса: босс опускается вниз, перемещается к противоположному
+        краю арены, возвращается назад и поднимается наверх.
+        :return: Nothing
+        """
         if self.state == 'go_right':
             if self.x < 750:
                 self.x += self.speed
@@ -649,6 +804,10 @@ def terminate():
 
 
 def game():
+    """
+    Функция отвечает за основной мир, где игрок выбирает уровень.
+    :return: Nothing
+    """
     global player, finished_levels
     check_level()
     level_x, level_y = generate_level(load_level('map.txt'))
@@ -763,6 +922,10 @@ def game():
 
 
 def first_level():
+    """
+    Функция отвечает за первый уровень.
+    :return: Nothing
+    """
     global player, first_lvl_victory, x, y
     SHOOTEVENTTYPE = pygame.USEREVENT + 1
     BOSSMOVEEVENTTYPE = pygame.USEREVENT + 2
@@ -1129,6 +1292,10 @@ def first_level():
 
 
 def second_level():
+    """
+    Функция отвечает за второй уровень.
+    :return: Nothing
+    """
     global player, x, y
     tiles_group.empty()
     level_x, level_y = generate_level(load_level('map_lvl2.txt'))
@@ -1387,6 +1554,10 @@ def second_level():
 
 
 def start_screen():
+    """
+    Функция отвечает за начальное окно.
+    :return: Nothing
+    """
     global x, y
     pygame.display.set_caption('Void Odyssey')
     pygame.mouse.set_visible(False)
@@ -1427,6 +1598,10 @@ def start_screen():
 
 
 def settings_screen():
+    """
+    Функция отвечает за окно настроек и сохранение выбранных пользователем настроек.
+    :return: Nothing
+    """
     global x, y, k_right, k_left, k_up, k_down, k_shoot, k_jump, k_dash
     error = False
     pygame.display.set_caption('Settings')
@@ -1616,7 +1791,9 @@ def print_text(message, x, y, color=(0, 0, 0), font_size=30, font_type='DreiFrak
 
 
 def get_balance():
-    """получить баланс игрока"""
+    """
+    Получить баланс игрока.
+    """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
     cur = con.cursor()
@@ -1627,7 +1804,9 @@ def get_balance():
 
 
 def update_balance(n):
-    """обновить баланс игрока на n монет"""
+    """
+    Обновить баланс игрока на n монет.
+    """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
     cur = con.cursor()
@@ -1639,8 +1818,10 @@ def update_balance(n):
 
 
 def finish_level(level_id):
-    """добавление пройденного уровня в бд
-    для нормальной отладки пока не используем"""
+    """
+    Добавление пройденного уровня в бд
+    для нормальной отладки, пока не используем.
+    """
     filename = os.path.join('data', 'localgamedb.sql')
     con = sqlite3.connect(filename)
     cur = con.cursor()
@@ -1651,7 +1832,9 @@ def finish_level(level_id):
 
 
 def check_level():
-    """получение списка пройденных уровней игрока"""
+    """
+    Получение списка пройденных уровней игрока.
+    """
     global finished_levels
     finished_levels = []
     filename = os.path.join('data', 'localgamedb.sql')
